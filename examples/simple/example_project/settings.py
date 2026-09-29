@@ -1,21 +1,30 @@
 import os
 
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.http import JsonResponse
 
 from djangoapi_guard import SecurityConfig
+from djangoapi_guard.adapters import DjangoGuardResponse
 
 
-def custom_request_check(request: HttpRequest) -> HttpResponse | None:
-    if request.GET.get("debug") == "true":
-        return JsonResponse({"detail": "Debug mode not allowed"}, status=403)
+def custom_request_check(request) -> DjangoGuardResponse | None:
+    # The check receives the guard's abstract request protocol: query
+    # params live on request.query_params, not Django's request.GET.
+    # Custom checks must return the guard response type, not a raw
+    # HttpResponse: the pipeline unwraps .body/.status_code itself.
+    if request.query_params.get("debug") == "true":
+        return DjangoGuardResponse(
+            JsonResponse({"detail": "Debug mode not allowed"}, status=403)
+        )
     return None
 
 
-def custom_response_modifier(response: HttpResponse) -> HttpResponse:
-    response["X-Content-Type-Options"] = "nosniff"
-    response["X-Frame-Options"] = "DENY"
-    response["X-XSS-Protection"] = "1; mode=block"
-    response["Referrer-Policy"] = "strict-origin-when-cross-origin"
+def custom_response_modifier(response):
+    # The pipeline passes the guard response wrapper: mutate headers
+    # through its MutableMapping, not Django's item assignment.
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
 
 
@@ -56,6 +65,7 @@ GUARD_SECURITY_CONFIG = SecurityConfig(
     auto_ban_threshold=5,
     auto_ban_duration=300,
     enable_penetration_detection=True,
+    behavior_scan_response_body=True,
     enable_redis=True,
     redis_url=os.environ.get("REDIS_URL", "redis://localhost:6379"),
     redis_prefix=os.environ.get("REDIS_PREFIX", "djangoapi_guard:"),

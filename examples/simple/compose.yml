@@ -9,7 +9,7 @@ services:
     environment:
       - DJANGO_SETTINGS_MODULE=example_project.settings
       - REDIS_URL=redis://redis:6379
-      - REDIS_PREFIX=djangoapi_guard:
+      - "REDIS_PREFIX=djangoapi_guard:"
       - IPINFO_TOKEN=${IPINFO_TOKEN:-test_token}
     volumes:
       - ./:/app:z

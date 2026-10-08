@@ -14,7 +14,7 @@ DjAPI Guard (repo name `djangoapi-guard`, distribution name `djapi-guard`) is a 
 - Route-level security decorators
 - Behavioral analysis and anomaly detection
 
-It is a direct port of [FlaskAPI Guard](https://github.com/rennf93/flaskapi-guard) to the Django middleware model, with the same feature set adapted to Django's synchronous request/response cycle.
+It is a direct port of [FlaskAPI Guard](https://github.com/Guard-Core/flaskapi-guard) to the Django middleware model, with the same feature set adapted to Django's synchronous request/response cycle.
 
 - **PyPI Package**: `djapi-guard`
 - **Import Name**: `djangoapi_guard`
@@ -24,7 +24,7 @@ It is a direct port of [FlaskAPI Guard](https://github.com/rennf93/flaskapi-guar
 
 ## Ecosystem Position
 
-DjAPI Guard is a **thin adapter** over [guard-core](https://github.com/rennf93/guard-core). All security logic (models, handlers, decorators, detection engine, protocols, utilities) lives in the `guard_core` package; this repo contains only the Django integration layer.
+DjAPI Guard is a **thin adapter** over [guard-core](https://github.com/Guard-Core/guard-core). All security logic (models, handlers, decorators, detection engine, protocols, utilities) lives in the `guard_core` package; this repo contains only the Django integration layer.
 
 ```text
 guard-core (engine, PyPI dependency >=3.15.0)   <- all security logic
@@ -56,7 +56,7 @@ All blocking checks respect `config.passive_mode`: when `True`, violations are l
 
 ## Boundary Rules
 
-- **This repo MUST NOT** contain security logic (checks, handlers, models, detection patterns, `SecurityConfig`). Those belong in [guard-core](https://github.com/rennf93/guard-core); a security fix belongs upstream, not here.
+- **This repo MUST NOT** contain security logic (checks, handlers, models, detection patterns, `SecurityConfig`). Those belong in [guard-core](https://github.com/Guard-Core/guard-core); a security fix belongs upstream, not here.
 - **This repo MUST** bridge Django native types to guard-core's `GuardRequest` / `GuardResponse` / response-factory protocols through `djangoapi_guard/adapters.py`, and use the `guard_core.sync.*` mirror (never the async tree) because Django is synchronous.
 - **This repo MUST** keep `DjangoAPIGuard` a thin orchestrator that delegates to `SecurityCheckPipeline`; do not fork or reimplement pipeline behavior.
 - **This repo MUST** re-export new guard-core public surface from `djangoapi_guard/__init__.py` when it becomes part of the adapter's user-facing API.
@@ -331,10 +331,10 @@ Tests need a reachable Redis at `localhost:6379` (or set `REDIS_URL`).
 
 ## Related Projects
 
-- **guard-core** - Framework-agnostic security engine (the engine this adapter wraps): <https://github.com/rennf93/guard-core>
-- **fastapi-guard** - FastAPI/Starlette adapter (async reference implementation): <https://github.com/rennf93/fastapi-guard>
-- **flaskapi-guard** - Flask extension adapter (sync mirror): <https://github.com/rennf93/flaskapi-guard>
-- **tornadoapi-guard** - Tornado handler/middleware adapter: <https://github.com/rennf93/tornadoapi-guard>
-- **guard-agent** - Telemetry and monitoring agent: <https://github.com/rennf93/guard-agent>
-- **guard-core-mcp** - MCP server for config validation and docs search: <https://github.com/rennf93/guard-core-mcp>
-- **guard-core-app** - SaaS platform (API, dashboard, playground): <https://github.com/rennf93/guard-core-app>
+- **guard-core** - Framework-agnostic security engine (the engine this adapter wraps): <https://github.com/Guard-Core/guard-core>
+- **fastapi-guard** - FastAPI/Starlette adapter (async reference implementation): <https://github.com/Guard-Core/fastapi-guard>
+- **flaskapi-guard** - Flask extension adapter (sync mirror): <https://github.com/Guard-Core/flaskapi-guard>
+- **tornadoapi-guard** - Tornado handler/middleware adapter: <https://github.com/Guard-Core/tornadoapi-guard>
+- **guard-agent** - Telemetry and monitoring agent: <https://github.com/Guard-Core/guard-agent>
+- **guard-core-mcp** - MCP server for config validation and docs search: <https://github.com/Guard-Core/guard-core-mcp>
+- **guard-core-app** - SaaS platform (API, dashboard, playground): <https://github.com/Guard-Core/guard-core-app>

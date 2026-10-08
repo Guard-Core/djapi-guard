@@ -3,7 +3,7 @@ name = "djapi-guard"
 version = "4.3.2"
 description = "A security library for Django to control IPs, log requests, and detect penetration attempts."
 authors = [
-    {name = "Renzo Franceschini", email = "rennf93@users.noreply.github.com"}
+    {name = "Renzo Franceschini", email = "rennf93@guard-core.com"}
 ]
 readme = "README.md"
 license = "MIT"
@@ -27,11 +27,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/rennf93/djapi-guard"
-Documentation = "https://rennf93.github.io/djapi-guard/latest/"
-Repository = "https://github.com/rennf93/djapi-guard"
-Issues = "https://github.com/rennf93/djapi-guard/issues"
-Changelog = "https://github.com/rennf93/djapi-guard/blob/master/CHANGELOG.md"
+Homepage = "https://github.com/Guard-Core/djapi-guard"
+Documentation = "https://guard-core.github.io/djapi-guard/latest/"
+Repository = "https://github.com/Guard-Core/djapi-guard"
+Issues = "https://github.com/Guard-Core/djapi-guard/issues"
+Changelog = "https://github.com/Guard-Core/djapi-guard/blob/master/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [

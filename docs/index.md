@@ -11,12 +11,12 @@ keywords: django, security, middleware, python, ip control, rate limiting, penet
 ![DjangoAPI Guard](assets/djapi_guard_legend.svg)
 
 [![PyPI version](https://badge.fury.io/py/djapi-guard.svg?cache=none&icon=si%3Apython&icon_color=%23008cb4)](https://badge.fury.io/py/djapi-guard)
-[![Release](https://github.com/rennf93/djapi-guard/actions/workflows/release.yml/badge.svg)](https://github.com/rennf93/djapi-guard/actions/workflows/release.yml)
+[![Release](https://github.com/Guard-Core/djapi-guard/actions/workflows/release.yml/badge.svg)](https://github.com/Guard-Core/djapi-guard/actions/workflows/release.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/rennf93/djapi-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/rennf93/djapi-guard/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/rennf93/djapi-guard/actions/workflows/code-ql.yml/badge.svg)](https://github.com/rennf93/djapi-guard/actions/workflows/code-ql.yml)
+[![CI](https://github.com/Guard-Core/djapi-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/Guard-Core/djapi-guard/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/Guard-Core/djapi-guard/actions/workflows/code-ql.yml/badge.svg)](https://github.com/Guard-Core/djapi-guard/actions/workflows/code-ql.yml)
 
-`djapi-guard` is a comprehensive security library for Django applications, providing middleware to control IPs, log requests, and detect penetration attempts. It integrates seamlessly with Django to offer robust protection against various security threats, ensuring your application remains secure and reliable. DjangoAPI Guard is a direct port of [FastAPI Guard](https://github.com/rennf93/fastapi-guard) to the Django ecosystem.
+`djapi-guard` is a comprehensive security library for Django applications, providing middleware to control IPs, log requests, and detect penetration attempts. It integrates seamlessly with Django to offer robust protection against various security threats, ensuring your application remains secure and reliable. DjangoAPI Guard is a direct port of [FastAPI Guard](https://github.com/Guard-Core/fastapi-guard) to the Django ecosystem.
 
 ___
 
@@ -96,20 +96,20 @@ ___
 
 ## Example App
 
-Inside [examples](https://github.com/rennf93/djapi-guard/tree/master/examples), you can find a simple example app that demonstrates how to use DjangoAPI Guard.
+Inside [examples](https://github.com/Guard-Core/djapi-guard/tree/master/examples), you can find a simple example app that demonstrates how to use DjangoAPI Guard.
 
 ___
 
 ## Docker Container
 
-You can also download the example app as a Docker container from [GitHub Container Registry](https://github.com/orgs/rennf93/packages/container/djapi-guard-example).
+You can also download the example app as a Docker container from [GitHub Container Registry](https://github.com/orgs/Guard-Core/packages/container/djapi-guard-example).
 
 ```bash
 # Pull the latest version
-docker pull ghcr.io/rennf93/djapi-guard-example:latest
+docker pull ghcr.io/guard-core/djapi-guard-example:latest
 
 # Or pull a specific version (matches library releases)
-docker pull ghcr.io/rennf93/djapi-guard-example:v4.3.2
+docker pull ghcr.io/guard-core/djapi-guard-example:v4.3.2
 ```
 
 ___
@@ -122,7 +122,7 @@ The easiest way to run the example app is with Docker Compose, which automatical
 
 ```bash
 # Clone the repository
-git clone https://github.com/rennf93/djapi-guard.git
+git clone https://github.com/Guard-Core/djapi-guard.git
 cd djapi-guard/examples
 
 # Start the app with Redis
@@ -137,14 +137,14 @@ Alternatively, you can run just the container:
 
 ```bash
 # Run with default settings
-docker run -p 8000:8000 ghcr.io/rennf93/djapi-guard-example:latest
+docker run -p 8000:8000 ghcr.io/guard-core/djapi-guard-example:latest
 
 # Run with custom Redis connection
 docker run -p 8000:8000 \
   -e REDIS_URL=redis://your-redis-host:your-redis-port \
   -e REDIS_PREFIX=your-redis-prefix \
   -e IPINFO_TOKEN=your-ipinfo-token \
-  ghcr.io/rennf93/djapi-guard-example:latest
+  ghcr.io/guard-core/djapi-guard-example:latest
 ```
 
 ### Running Locally
@@ -400,7 +400,7 @@ ___
 
 ## Key Differences from FastAPI Guard
 
-DjangoAPI Guard is a direct port of [FastAPI Guard](https://github.com/rennf93/fastapi-guard) adapted for Django's synchronous model:
+DjangoAPI Guard is a direct port of [FastAPI Guard](https://github.com/Guard-Core/fastapi-guard) adapted for Django's synchronous model:
 
 | Aspect | FastAPI Guard | DjangoAPI Guard |
 |--------|--------------|----------------|
@@ -421,6 +421,6 @@ ___
 ## Documentation
 
 - [Release Notes](release-notes.md)
-- [GitHub Repository](https://github.com/rennf93/djapi-guard)
+- [GitHub Repository](https://github.com/Guard-Core/djapi-guard)
 - [PyPI Package](https://pypi.org/project/djapi-guard/)
-- [FastAPI Guard (upstream)](https://github.com/rennf93/fastapi-guard)
+- [FastAPI Guard (upstream)](https://github.com/Guard-Core/fastapi-guard)

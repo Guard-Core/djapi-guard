@@ -1,6 +1,6 @@
 site_name: DjangoAPI Guard
 site_description: Security middleware for Django applications
-site_url: https://guard-core.github.io/djapi-guard/latest/
+site_url: https://guard-core.github.io/djapi-guard/
 repo_name: Guard-Core/djapi-guard
 repo_url: https://github.com/Guard-Core/djapi-guard
 edit_uri: edit/master/docs/

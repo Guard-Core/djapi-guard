@@ -6,7 +6,6 @@
 
 ---
 
-
 ## Documentation
 
 📚 **[Documentation](https://guard-core.github.io/djapi-guard/latest/)** - full technical documentation for this package.

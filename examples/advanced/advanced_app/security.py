@@ -1,24 +1,29 @@
 import logging
 import os
 
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.http import JsonResponse
+from guard_core.protocols.response_protocol import GuardResponse
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest as GuardRequest
 
 from djangoapi_guard import SecurityConfig, SecurityDecorator
+from djangoapi_guard.adapters import DjangoGuardResponse
 
 logger = logging.getLogger(__name__)
 
 
-def custom_request_check(request: HttpRequest) -> HttpResponse | None:
-    if request.GET.get("debug") == "true":
-        return JsonResponse({"detail": "Debug mode not allowed"}, status=403)
+def custom_request_check(request: GuardRequest) -> GuardResponse | None:
+    if request.query_params.get("debug") == "true":
+        return DjangoGuardResponse(
+            JsonResponse({"detail": "Debug mode not allowed"}, status=403)
+        )
     return None
 
 
-def custom_response_modifier(response: HttpResponse) -> HttpResponse:
-    response["X-Content-Type-Options"] = "nosniff"
-    response["X-Frame-Options"] = "DENY"
-    response["X-XSS-Protection"] = "1; mode=block"
-    response["Referrer-Policy"] = "strict-origin-when-cross-origin"
+def custom_response_modifier(response: GuardResponse) -> GuardResponse:
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
 
 

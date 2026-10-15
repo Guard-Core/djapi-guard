@@ -20,7 +20,7 @@ def monitor_usage_patterns(request: HttpRequest) -> JsonResponse:
 
 
 @require_GET
-@guard.return_monitor(pattern="404", max_occurrences=3, window=60, action="ban")
+@guard.return_monitor(pattern="status:404", max_occurrences=3, window=60, action="ban")
 def monitor_return_patterns(request: HttpRequest, status_code: int) -> JsonResponse:
     if status_code == 404:
         return JsonResponse({"detail": "Not found"}, status=404)
@@ -52,7 +52,7 @@ def detect_suspicious_frequency(request: HttpRequest) -> JsonResponse:
         ),
         BehaviorRule(
             rule_type="return_pattern",
-            pattern="404",
+            pattern="status:404",
             threshold=5,
             window=60,
             action="ban",

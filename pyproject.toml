@@ -1,6 +1,6 @@
 [project]
 name = "djapi-guard"
-version = "4.3.3"
+version = "5.0.0"
 description = "A security library for Django to control IPs, log requests, and detect penetration attempts."
 authors = [
     {name = "Renzo Franceschini", email = "rennf93@guard-core.com"}
@@ -23,7 +23,7 @@ classifiers = [
 ]
 dependencies = [
     "django",
-    "guard-core>=4.1.0",
+    "guard-core>=4.4.0",
 ]
 
 [project.urls]

@@ -3,6 +3,36 @@ Release Notes
 
 ___
 
+v5.0.0 (2026-10-15)
+-------------------
+
+Engine routing parity with fastapi-guard, required GUARD_SECURITY_CONFIG (v5.0.0)
+---------------------------------------------------------------------------------
+
+### Breaking changes
+
+- **A missing `settings.GUARD_SECURITY_CONFIG` now raises `ImproperlyConfigured`** (#39, closes #38). `DjangoAPIGuard` used to fall back silently to `SecurityConfig()` defaults when the setting was absent or `None`, which ran the guard with a configuration you never chose. It now fails at startup with a message naming the setting.
+- **Upgrade action** - Define `GUARD_SECURITY_CONFIG = SecurityConfig(...)` in your Django settings before upgrading. If you relied on the defaults, set `GUARD_SECURITY_CONFIG = SecurityConfig()` explicitly.
+
+### Fixed
+
+- **Global behavioral return rules now run.** `global_behavior_rules` are passed to the engine response pass at both response-pass call sites, as fastapi-guard does.
+
+### Documentation and tests
+
+- The README examples now build a real `SecurityConfig` instead of relying on the fallback, and the advanced example uses the engine request and response protocols and the `status:404` return pattern syntax.
+- `tests/test_engine_parity.py` drives the middleware over Django's real URL resolution and views with the real engine bypass handler and response factory. The test that asserted the fallback now asserts the error.
+
+### Compatibility
+
+- The `guard-core` floor stays at `>=4.1.0`. The detection and dynamic rule fixes in guard-core 4.4.0 reach this adapter by upgrading guard-core (for example `pip install -U guard-core`), with no change to this package.
+
+### Chore
+
+- The sponsor button points at the maintainer's Sponsors page, the mkdocs `site_url` drops `/latest/` so canonical URLs resolve, the README markdown lint errors that blocked the docs deploy are fixed and the README was brought to content parity, a CODEOWNERS file was added, the family Discord relay workflow was added, and the `upload-sarif` action was bumped (#29, #30, #31, #32, #34, #36, #37).
+
+___
+
 v4.3.3 (2026-10-08)
 -------------------
 

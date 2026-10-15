@@ -4,6 +4,7 @@ from collections.abc import Callable
 from typing import Any, cast
 
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.http import HttpRequest, HttpResponse
 from guard_core.exceptions import GuardRedisError
 from guard_core.models import SecurityConfig
@@ -41,7 +42,10 @@ class DjangoAPIGuard:
 
         config = getattr(settings, "GUARD_SECURITY_CONFIG", None)
         if config is None:
-            config = SecurityConfig()
+            raise ImproperlyConfigured(
+                "DjangoAPIGuard requires settings.GUARD_SECURITY_CONFIG to be "
+                "a SecurityConfig instance"
+            )
         self.config: SecurityConfig = config
 
         self.logger: logging.Logger = setup_custom_logging(
@@ -380,6 +384,9 @@ class DjangoAPIGuard:
             response_time,
             route_config,
             process_behavioral_rules=self.behavioral_processor.process_return_rules,
+            process_global_behavioral_rules=(
+                self.behavioral_processor.process_global_return_rules
+            ),
         )
         final = unwrap_response(result)
         if self._cors_handler:
@@ -535,6 +542,9 @@ class DjangoAPIGuard:
             response_time,
             route_config,
             process_behavioral_rules=self.behavioral_processor.process_return_rules,
+            process_global_behavioral_rules=(
+                self.behavioral_processor.process_global_return_rules
+            ),
         )
         return unwrap_response(result)
 

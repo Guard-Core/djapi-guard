@@ -240,7 +240,11 @@ To use `djapi-guard`, you need to add the middleware to your Django project and 
 
 ### settings.py
 
+`settings.GUARD_SECURITY_CONFIG` is required and must be a `SecurityConfig` instance: if it is missing, the middleware raises `ImproperlyConfigured` at startup instead of silently running with defaults.
+
 ```python
+from djangoapi_guard import SecurityConfig
+
 MIDDLEWARE = [
     # Add DjangoAPI Guard middleware early in the stack
     "djangoapi_guard.middleware.DjangoAPIGuard",
@@ -250,28 +254,28 @@ MIDDLEWARE = [
     # ... other middleware
 ]
 
-# Define your security configuration
-GUARD_SECURITY_CONFIG = {
-    "ipinfo_token": "your_ipinfo_token_here",  # Optional: IPInfo token required for IP geolocation
-    "ipinfo_db_path": "custom/ipinfo.db",  # Optional custom database path
-    "whitelist": ["192.168.1.1", "2001:db8::1"],
-    "blacklist": ["10.0.0.1", "2001:db8::2"],
-    "blocked_countries": ["AR", "IT"],
-    "blocked_user_agents": ["curl", "wget"],
-    "auto_ban_threshold": 5,
-    "auto_ban_duration": 86400,
-    "custom_log_file": "security.log",
-    "rate_limit": 100,
-    "enforce_https": True,
-    "enable_cors": True,
-    "cors_allow_origins": ["*"],
-    "cors_allow_methods": ["GET", "POST"],
-    "cors_allow_headers": ["*"],
-    "cors_allow_credentials": True,
-    "cors_expose_headers": ["X-Custom-Header"],
-    "cors_max_age": 600,
-    "block_cloud_providers": {"AWS", "GCP", "Azure"},
-}
+# Define your security configuration (required: a SecurityConfig instance)
+GUARD_SECURITY_CONFIG = SecurityConfig(
+    ipinfo_token="your_ipinfo_token_here",  # Optional: IPInfo token required for IP geolocation
+    ipinfo_db_path="custom/ipinfo.db",  # Optional custom database path
+    whitelist=["192.168.1.1", "2001:db8::1"],
+    blacklist=["10.0.0.1", "2001:db8::2"],
+    blocked_countries=["AR", "IT"],
+    blocked_user_agents=["curl", "wget"],
+    auto_ban_threshold=5,
+    auto_ban_duration=86400,
+    custom_log_file="security.log",
+    rate_limit=100,
+    enforce_https=True,
+    enable_cors=True,
+    cors_allow_origins=["*"],
+    cors_allow_methods=["GET", "POST"],
+    cors_allow_headers=["*"],
+    cors_allow_credentials=True,
+    cors_expose_headers=["X-Custom-Header"],
+    cors_max_age=600,
+    block_cloud_providers={"AWS", "GCP", "Azure"},
+)
 ```
 
 ### views.py
@@ -288,10 +292,10 @@ def read_root(request):
 You can control access based on IP addresses using the `whitelist` and `blacklist` options in the `SecurityConfig`.
 
 ```python
-GUARD_SECURITY_CONFIG = {
-    "whitelist": ["192.168.1.1", "2001:db8::1"],
-    "blacklist": ["10.0.0.1", "2001:db8::2"],
-}
+GUARD_SECURITY_CONFIG = SecurityConfig(
+    whitelist=["192.168.1.1", "2001:db8::1"],
+    blacklist=["10.0.0.1", "2001:db8::2"],
+)
 ```
 
 ## User Agent Filtering
@@ -299,9 +303,9 @@ GUARD_SECURITY_CONFIG = {
 Block requests from specific user agents by adding patterns to the `blocked_user_agents` list.
 
 ```python
-GUARD_SECURITY_CONFIG = {
-    "blocked_user_agents": ["curl", "wget"],
-}
+GUARD_SECURITY_CONFIG = SecurityConfig(
+    blocked_user_agents=["curl", "wget"],
+)
 ```
 
 ## Rate Limiting
@@ -309,9 +313,9 @@ GUARD_SECURITY_CONFIG = {
 Limit the number of requests from a single IP using the `rate_limit` option.
 
 ```python
-GUARD_SECURITY_CONFIG = {
-    "rate_limit": 100,  # Maximum 100 requests per minute
-}
+GUARD_SECURITY_CONFIG = SecurityConfig(
+    rate_limit=100,  # Maximum 100 requests per minute
+)
 ```
 
 ## Automatic IP Banning
@@ -319,10 +323,10 @@ GUARD_SECURITY_CONFIG = {
 Automatically ban IPs after a certain number of suspicious requests using the `auto_ban_threshold` and `auto_ban_duration` options.
 
 ```python
-GUARD_SECURITY_CONFIG = {
-    "auto_ban_threshold": 5,  # Ban IP after 5 suspicious requests
-    "auto_ban_duration": 86400,  # Ban duration in seconds (1 day)
-}
+GUARD_SECURITY_CONFIG = SecurityConfig(
+    auto_ban_threshold=5,  # Ban IP after 5 suspicious requests
+    auto_ban_duration=86400,  # Ban duration in seconds (1 day)
+)
 ```
 
 ## Penetration Attempt Detection
@@ -330,17 +334,17 @@ GUARD_SECURITY_CONFIG = {
 Enable penetration attempt detection using the `enable_penetration_detection` option.
 
 ```python
-GUARD_SECURITY_CONFIG = {
-    "enable_penetration_detection": True,  # True by default
-}
+GUARD_SECURITY_CONFIG = SecurityConfig(
+    enable_penetration_detection=True,  # True by default
+)
 ```
 
 Optional: Enable `passive mode` to log suspicious activity without blocking requests.
 
 ```python
-GUARD_SECURITY_CONFIG = {
-    "passive_mode": True,  # False by default
-}
+GUARD_SECURITY_CONFIG = SecurityConfig(
+    passive_mode=True,  # False by default
+)
 ```
 
 ## Custom Penetration Detection
@@ -366,10 +370,10 @@ def submit_data(request):
 Log security events with console output (always enabled) and optional file logging:
 
 ```python
-GUARD_SECURITY_CONFIG = {
-    "custom_log_file": "security.log",  # Optional: adds file logging
+GUARD_SECURITY_CONFIG = SecurityConfig(
+    custom_log_file="security.log",  # Optional: adds file logging
     # "custom_log_file": None,  # Default: console output only
-}
+)
 ```
 
 **Note:** Console output is always enabled for visibility. File logging is only activated when `custom_log_file` is provided.
@@ -379,8 +383,8 @@ GUARD_SECURITY_CONFIG = {
 Configure comprehensive security headers following OWASP best practices:
 
 ```python
-GUARD_SECURITY_CONFIG = {
-    "security_headers": {
+GUARD_SECURITY_CONFIG = SecurityConfig(
+    security_headers={
         "enabled": True,
         "hsts": {
             "max_age": 31536000,  # 1 year
@@ -406,7 +410,7 @@ GUARD_SECURITY_CONFIG = {
             "X-Custom-Header": "CustomValue",
         },
     },
-}
+)
 ```
 
 Key security headers supported:
@@ -427,15 +431,15 @@ Key security headers supported:
 Configure CORS settings for your Django application using the `enable_cors` and related options.
 
 ```python
-GUARD_SECURITY_CONFIG = {
-    "enable_cors": True,
-    "cors_allow_origins": ["*"],
-    "cors_allow_methods": ["GET", "POST"],
-    "cors_allow_headers": ["*"],
-    "cors_allow_credentials": True,
-    "cors_expose_headers": ["X-Custom-Header"],
-    "cors_max_age": 600,
-}
+GUARD_SECURITY_CONFIG = SecurityConfig(
+    enable_cors=True,
+    cors_allow_origins=["*"],
+    cors_allow_methods=["GET", "POST"],
+    cors_allow_headers=["*"],
+    cors_allow_credentials=True,
+    cors_expose_headers=["X-Custom-Header"],
+    cors_max_age=600,
+)
 ```
 
 ## Cloud Provider IP Blocking
@@ -443,9 +447,9 @@ GUARD_SECURITY_CONFIG = {
 Block requests from cloud provider IPs (AWS, GCP, Azure) using the `block_cloud_providers` option.
 
 ```python
-GUARD_SECURITY_CONFIG = {
-    "block_cloud_providers": {"AWS", "GCP", "Azure"},
-}
+GUARD_SECURITY_CONFIG = SecurityConfig(
+    block_cloud_providers={"AWS", "GCP", "Azure"},
+)
 ```
 
 ## IP Geolocation and Country Blocking
@@ -478,10 +482,8 @@ from django.http import JsonResponse
 
 # Create decorator instance
 from django.conf import settings
-from djangoapi_guard.models import SecurityConfig as SecurityConfigModel
 
-config = SecurityConfigModel(**settings.GUARD_SECURITY_CONFIG)
-guard_deco = SecurityDecorator(config)
+guard_deco = SecurityDecorator(settings.GUARD_SECURITY_CONFIG)
 
 # Apply decorators to specific views
 def public_endpoint(request):
@@ -582,11 +584,11 @@ ___
 Configure trusted proxies to securely handle X-Forwarded-For headers:
 
 ```python
-GUARD_SECURITY_CONFIG = {
-    "trusted_proxies": ["10.0.0.1", "192.168.1.0/24"],  # List of trusted proxy IPs or CIDR ranges
-    "trusted_proxy_depth": 1,                           # How many proxies to expect in chain
-    "trust_x_forwarded_proto": True,                    # Whether to trust X-Forwarded-Proto for HTTPS detection (default: True)
-}
+GUARD_SECURITY_CONFIG = SecurityConfig(
+    trusted_proxies=["10.0.0.1", "192.168.1.0/24"],  # List of trusted proxy IPs or CIDR ranges
+    trusted_proxy_depth=1,                           # How many proxies to expect in chain
+    trust_x_forwarded_proto=True,                    # Whether to trust X-Forwarded-Proto for HTTPS detection (default: True)
+)
 ```
 
 When `trusted_proxies` is configured, DjangoAPI Guard will:
@@ -610,11 +612,11 @@ To use the geolocation feature with this handler:
 ```python
 from djangoapi_guard.protocols.geo_ip_protocol import GeoIPHandler
 
-GUARD_SECURITY_CONFIG = {
-    "geo_ip_handler": GeoIPHandler,
-    "blocked_countries": ["AR", "IT"],   # Block specific countries using ISO 3166-1 alpha-2 codes
-    "whitelist_countries": ["US", "CA"],  # Optional: Only allow specific countries
-}
+GUARD_SECURITY_CONFIG = SecurityConfig(
+    geo_ip_handler=GeoIPHandler,
+    blocked_countries=["AR", "IT"],   # Block specific countries using ISO 3166-1 alpha-2 codes
+    whitelist_countries=["US", "CA"],  # Optional: Only allow specific countries
+)
 ```
 
 The database is automatically downloaded and cached locally when the middleware starts, if required, and it's updated daily to ensure accuracy.
@@ -647,11 +649,11 @@ class GeoIPHandler:
         ...
 
 
-GUARD_SECURITY_CONFIG = {
-    "geo_ip_handler": GeoIPHandler,
-    "blocked_countries": ["AR", "IT"],  # Block specific countries using ISO 3166-1 alpha-2 codes
-    "whitelist_countries": ["US", "CA"],  # Optional: Only allow specific countries
-}
+GUARD_SECURITY_CONFIG = SecurityConfig(
+    geo_ip_handler=GeoIPHandler,
+    blocked_countries=["AR", "IT"],  # Block specific countries using ISO 3166-1 alpha-2 codes
+    whitelist_countries=["US", "CA"],  # Optional: Only allow specific countries
+)
 ```
 
 ### Custom Request Check
@@ -667,9 +669,9 @@ def custom_check(req) -> Optional[HttpResponse]:
         return HttpResponse("Missing custom header", status=400)
     return None
 
-GUARD_SECURITY_CONFIG = {
-    "custom_request_check": custom_check,
-}
+GUARD_SECURITY_CONFIG = SecurityConfig(
+    custom_request_check=custom_check,
+)
 ```
 
 ### Custom Response Modifier
@@ -695,9 +697,9 @@ def custom_modifier(response: HttpResponse) -> HttpResponse:
 
     return response
 
-GUARD_SECURITY_CONFIG = {
-    "custom_response_modifier": custom_modifier,
-}
+GUARD_SECURITY_CONFIG = SecurityConfig(
+    custom_response_modifier=custom_modifier,
+)
 ```
 
 The example above shows how to:
@@ -712,11 +714,11 @@ ___
 Enable distributed state management across multiple instances:
 
 ```python
-GUARD_SECURITY_CONFIG = {
-    "enable_redis": True,
-    "redis_url": "redis://prod-redis:6379/1",
-    "redis_prefix": "myapp:security:",
-}
+GUARD_SECURITY_CONFIG = SecurityConfig(
+    enable_redis=True,
+    redis_url="redis://prod-redis:6379/1",
+    redis_prefix="myapp:security:",
+)
 ```
 
 The Redis integration provides:
@@ -733,10 +735,10 @@ ___
 Block all incoming traffic except from explicitly whitelisted IPs. Useful during active attacks or maintenance windows:
 
 ```python
-GUARD_SECURITY_CONFIG = {
-    "emergency_mode": True,
-    "emergency_whitelist": ["10.0.0.1", "192.168.1.0/24"],
-}
+GUARD_SECURITY_CONFIG = SecurityConfig(
+    emergency_mode=True,
+    emergency_whitelist=["10.0.0.1", "192.168.1.0/24"],
+)
 ```
 
 ___

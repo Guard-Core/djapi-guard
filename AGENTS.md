@@ -101,7 +101,7 @@ GUARD_SECURITY_CONFIG = SecurityConfig(
 )
 ```
 
-`GUARD_SECURITY_CONFIG` must be a `SecurityConfig` instance; when the setting is absent the middleware falls back to `SecurityConfig()` defaults.
+`GUARD_SECURITY_CONFIG` must be a `SecurityConfig` instance; when the setting is absent the middleware raises `ImproperlyConfigured` (there is no silent default, matching fastapi-guard requiring `config=`).
 
 ## Development Commands
 

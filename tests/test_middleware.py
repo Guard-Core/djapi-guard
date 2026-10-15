@@ -1462,12 +1462,13 @@ class TestDjangoAPIGuardCoverage:
 
         return DjangoAPIGuard(get_response)
 
-    def test_config_default_from_settings(self) -> None:
+    def test_missing_config_is_rejected(self) -> None:
         import django.conf
+        from django.core.exceptions import ImproperlyConfigured
 
         django.conf.settings.GUARD_SECURITY_CONFIG = None
-        middleware = DjangoAPIGuard(lambda _: HttpResponse("OK"))
-        assert middleware.config is not None
+        with pytest.raises(ImproperlyConfigured, match="GUARD_SECURITY_CONFIG"):
+            DjangoAPIGuard(lambda _: HttpResponse("OK"))
 
     def test_guard_response_factory_property(self) -> None:
         from djangoapi_guard.adapters import DjangoResponseFactory

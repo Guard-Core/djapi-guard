@@ -145,6 +145,7 @@ def test_honeypot_form_detection(security_config: SecurityConfig) -> None:
 
     mock_request = MagicMock()
     mock_request.method = "POST"
+    mock_request.url_full = "http://test/"
     mock_request.headers.get = lambda key, default="": (
         "application/x-www-form-urlencoded" if key == "content-type" else default
     )
@@ -172,6 +173,7 @@ def test_honeypot_json_exception(security_config: SecurityConfig) -> None:
 
     mock_request = MagicMock()
     mock_request.method = "POST"
+    mock_request.url_full = "http://test/"
     mock_request.headers.get = lambda key, default="": (
         "application/json" if key == "content-type" else default
     )
@@ -197,6 +199,7 @@ def test_honeypot_json_detection(security_config: SecurityConfig) -> None:
 
     mock_request = MagicMock()
     mock_request.method = "POST"
+    mock_request.url_full = "http://test/"
     mock_request.headers.get = lambda key, default="": (
         "application/json" if key == "content-type" else default
     )

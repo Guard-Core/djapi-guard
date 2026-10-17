@@ -6,12 +6,18 @@ import django
 
 django.setup()
 
+from collections.abc import Callable, Iterator
 from typing import Any, cast
 from unittest.mock import Mock
 
 import pytest
+from django.core.handlers.base import BaseHandler
+from django.http import HttpRequest, HttpResponse
+from django.test import RequestFactory, override_settings
 
 from djangoapi_guard import SecurityConfig, SecurityDecorator
+from djangoapi_guard.middleware import DjangoAPIGuard
+from tests import api_key_urls
 
 
 @pytest.fixture
@@ -265,3 +271,61 @@ def test_require_auth_with_various_types(security_config: SecurityConfig) -> Non
         route_config = decorator.get_route_config(cast(Any, decorated)._guard_route_id)
         assert route_config is not None
         assert route_config.auth_required == auth_type
+
+
+@pytest.fixture
+def api_key_guard() -> Iterator[DjangoAPIGuard]:
+    config = SecurityConfig(
+        enable_redis=False,
+        enable_agent=False,
+        enable_penetration_detection=False,
+        whitelist=None,
+        blacklist=(),
+        trusted_proxies=("127.0.0.1",),
+        auth_verifier=lambda request, credential: (
+            {"user": "ok"} if credential else None
+        ),
+    )
+    with override_settings(ROOT_URLCONF="tests.api_key_urls", MIDDLEWARE=[]):
+        handler = BaseHandler()
+        handler.load_middleware()
+        with override_settings(GUARD_SECURITY_CONFIG=config):
+            guard = DjangoAPIGuard(
+                cast(Callable[[HttpRequest], HttpResponse], handler.get_response)
+            )
+        guard.set_decorator_handler(api_key_urls.security)
+        yield guard
+
+
+@pytest.mark.parametrize(
+    "path,header,handler_message",
+    [
+        (
+            "/api-key-default/",
+            "X-API-Key",
+            "API key required (default header)",
+        ),
+        (
+            "/api-key-custom/",
+            "Authorization",
+            "API key required (custom header)",
+        ),
+    ],
+)
+def test_api_key_route_refuses_a_missing_key_and_answers_a_present_one(
+    api_key_guard: DjangoAPIGuard,
+    path: str,
+    header: str,
+    handler_message: str,
+) -> None:
+    missing_request = RequestFactory().get(path)
+    missing_request.META["REMOTE_ADDR"] = "203.0.113.5"
+    missing = api_key_guard(missing_request)
+    assert missing.status_code in (400, 401)
+    assert handler_message not in missing.content.decode()
+
+    present_request = RequestFactory().get(path, headers={header: "test-key"})
+    present_request.META["REMOTE_ADDR"] = "203.0.113.5"
+    present = api_key_guard(present_request)
+    assert present.status_code == 200
+    assert handler_message in present.content.decode()

@@ -1947,10 +1947,16 @@ class TestDjangoAPIGuardCoverage:
         route_config.behavior_rules = [Mock()]
 
         guard_request = DjangoGuardRequest(HttpRequest())
-        with patch.object(middleware.behavioral_processor, "process_usage_rules"):
-            middleware._process_behavioral_usage(
-                guard_request, "127.0.0.1", route_config
+        with patch.object(
+            middleware.behavioral_processor, "process_usage_rules", return_value=None
+        ) as usage:
+            assert (
+                middleware._process_behavioral_usage(
+                    guard_request, "127.0.0.1", route_config
+                )
+                is None
             )
+        usage.assert_called_once_with(guard_request, "127.0.0.1", route_config)
 
     def test_adapter_headers_iter_and_len(self) -> None:
         from djangoapi_guard.adapters import DjangoHeadersMapping

@@ -115,6 +115,7 @@ class DjangoAPIGuard:
         self.validator: RequestValidator | None = None
         self.bypass_handler: BypassHandler | None = None
         self.behavioral_processor: BehavioralProcessor | None = None
+        self._global_throttle_rules = False
         self._guard_response_factory = DjangoResponseFactory()
         self._cors_handler: CorsHandler | None = (
             CorsHandler(self.config) if self.config.enable_cors else None
@@ -252,6 +253,9 @@ class DjangoAPIGuard:
             middleware=self,
         )
         self.behavioral_processor = BehavioralProcessor(behavioral_context)
+        self._global_throttle_rules = any(
+            rule.action == "throttle" for rule in self.config.global_behavior_rules
+        )
 
     def _assert_initialized(self) -> None:
         if self.bypass_handler is None:
@@ -373,7 +377,11 @@ class DjangoAPIGuard:
         if blocking:
             return self._attach_cors_headers(blocking, request)
 
-        self._process_behavioral_usage(guard_request, client_ip, route_config)
+        throttled = self._process_behavioral_usage(
+            guard_request, client_ip, route_config
+        )
+        if throttled is not None:
+            return self._attach_cors_headers(throttled, request)
 
         response = self.get_response(request)
         return self._finalize_response(request, response, route_config)
@@ -392,13 +400,16 @@ class DjangoAPIGuard:
         guard_request: DjangoGuardRequest,
         client_ip: str,
         route_config: RouteConfig | None,
-    ) -> None:
+    ) -> HttpResponse | None:
         if self.behavioral_processor is None:
             raise RuntimeError("behavioral_processor not initialized")
-        if route_config and route_config.behavior_rules and client_ip:
-            self.behavioral_processor.process_usage_rules(
-                guard_request, client_ip, route_config
-            )
+        has_route_rules = route_config is not None and bool(route_config.behavior_rules)
+        if not client_ip or not (has_route_rules or self._global_throttle_rules):
+            return None
+        refused = self.behavioral_processor.process_usage_rules(
+            guard_request, client_ip, route_config
+        )
+        return None if refused is None else unwrap_response(refused)
 
     def _build_preflight_response(
         self, request_headers: dict[str, str]
@@ -615,13 +626,14 @@ class DjangoAPIGuard:
 
     def _process_decorator_usage_rules(
         self, request: HttpRequest, client_ip: str, route_config: RouteConfig
-    ) -> None:
+    ) -> HttpResponse | None:
         if self.behavioral_processor is None:
             raise RuntimeError("behavioral_processor not initialized")
         guard_request = DjangoGuardRequest(request)
-        self.behavioral_processor.process_usage_rules(
+        refused = self.behavioral_processor.process_usage_rules(
             guard_request, client_ip, route_config
         )
+        return None if refused is None else unwrap_response(refused)
 
     def _process_decorator_return_rules(
         self,

@@ -1,4 +1,5 @@
 import logging
+import re
 import time
 from collections.abc import Callable
 from typing import Any, cast
@@ -12,6 +13,7 @@ from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync.core.behavioral import BehavioralContext, BehavioralProcessor
 from guard_core.sync.core.bypass import BypassContext, BypassHandler
 from guard_core.sync.core.checks.pipeline import SecurityCheckPipeline
+from guard_core.sync.core.checks.route_prefixes import regex_route_prefix
 from guard_core.sync.core.events import MetricsCollector, SecurityEventBus
 from guard_core.sync.core.initialization import HandlerInitializer
 from guard_core.sync.core.responses import ErrorResponseFactory, ResponseContext
@@ -51,6 +53,31 @@ def _route_identity(match: Any) -> tuple[Any, tuple[tuple[str, str], ...]]:
     params = [(str(index), str(value)) for index, value in enumerate(match.args)]
     params += [(name, str(value)) for name, value in match.kwargs.items()]
     return match.func, tuple(sorted(params))
+
+
+def _pattern_texts(pattern: Any) -> list[str]:
+    from django.urls.resolvers import LocalePrefixPattern, RoutePattern
+
+    if isinstance(pattern, LocalePrefixPattern):
+        texts = [f"{code}/" for code, _ in settings.LANGUAGES]
+        return texts if pattern.prefix_default_language else [*texts, ""]
+    if isinstance(pattern, RoutePattern):
+        return [re.sub(r"<[^>]*>", "(.*)", str(pattern))]
+    return [pattern.regex.pattern.removeprefix("^")]
+
+
+def _urlconf_prefixes(patterns: Any, base: str) -> list[str]:
+    from django.urls.resolvers import RoutePattern
+
+    prefixes: list[str] = []
+    for entry in patterns:
+        for text in _pattern_texts(entry.pattern):
+            if hasattr(entry, "url_patterns"):
+                prefixes.extend(_urlconf_prefixes(entry.url_patterns, base + text))
+                continue
+            end = "$" if isinstance(entry.pattern, RoutePattern) else ""
+            prefixes.append(regex_route_prefix(base + text + end))
+    return prefixes
 
 
 class DjangoAPIGuard:
@@ -264,6 +291,11 @@ class DjangoAPIGuard:
             return (_route_identity(_resolve_match(path)),)
         except Resolver404:
             return ()
+
+    def static_route_prefixes(self) -> tuple[str, ...]:
+        from django.urls import get_resolver
+
+        return tuple(_urlconf_prefixes(get_resolver().url_patterns, ""))
 
     def _ensure_handlers_initialized(self, request: HttpRequest) -> HttpResponse | None:
         if self._handlers_initialized:

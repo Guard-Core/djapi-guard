@@ -33,6 +33,26 @@ from djangoapi_guard.adapters import (
 )
 
 
+def _resolve_match(path: str) -> Any:
+    from django.urls import Resolver404, resolve
+    from django.utils import translation
+
+    try:
+        return resolve(path)
+    except Resolver404:
+        language = translation.get_language_from_path(path)
+        if language is None:
+            raise
+        with translation.override(language):
+            return resolve(path)
+
+
+def _route_identity(match: Any) -> tuple[Any, tuple[tuple[str, str], ...]]:
+    params = [(str(index), str(value)) for index, value in enumerate(match.args)]
+    params += [(name, str(value)) for name, value in match.kwargs.items()]
+    return match.func, tuple(sorted(params))
+
+
 class DjangoAPIGuard:
     def __init__(
         self,
@@ -218,10 +238,10 @@ class DjangoAPIGuard:
     def _populate_guard_state(
         self, guard_request: DjangoGuardRequest, request: HttpRequest
     ) -> None:
-        from django.urls import Resolver404, resolve
+        from django.urls import Resolver404
 
         try:
-            match = resolve(request.path)
+            match = _resolve_match(request.path)
             view_func = match.func
             if hasattr(view_func, "view_class"):
                 view_func = view_func.view_class
@@ -230,8 +250,20 @@ class DjangoAPIGuard:
             )
             if hasattr(view_func, "_guard_route_id"):
                 guard_request.state.guard_route_id = view_func._guard_route_id
+            if getattr(self.security_pipeline, "needs_route_identity", False):
+                guard_request.state.guard_route_identity = _route_identity(match)
         except Resolver404:
             guard_request.state.guard_route_unresolved = True
+
+    def resolve_route(
+        self, path: str
+    ) -> tuple[tuple[Any, tuple[tuple[str, str], ...]], ...]:
+        from django.urls import Resolver404
+
+        try:
+            return (_route_identity(_resolve_match(path)),)
+        except Resolver404:
+            return ()
 
     def _ensure_handlers_initialized(self, request: HttpRequest) -> HttpResponse | None:
         if self._handlers_initialized:

@@ -225,11 +225,11 @@ class DjangoAPIGuard:
             view_func = match.func
             if hasattr(view_func, "view_class"):
                 view_func = view_func.view_class
+            guard_request.state.guard_endpoint_id = (
+                f"{view_func.__module__}.{view_func.__qualname__}"
+            )
             if hasattr(view_func, "_guard_route_id"):
                 guard_request.state.guard_route_id = view_func._guard_route_id
-                guard_request.state.guard_endpoint_id = (
-                    f"{view_func.__module__}.{view_func.__qualname__}"
-                )
         except Resolver404:
             guard_request.state.guard_route_unresolved = True
 

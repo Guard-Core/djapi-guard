@@ -1583,6 +1583,7 @@ class TestDjangoAPIGuardCoverage:
 
         assert not hasattr(request, "guard_route_unresolved")
         assert not hasattr(request, "guard_route_id")
+        assert cast(Any, request).guard_endpoint_id == "tests.urls.index"
 
     def test_call_passthrough_response(self) -> None:
         middleware = self._make_middleware()

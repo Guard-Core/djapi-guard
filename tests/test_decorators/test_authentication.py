@@ -92,13 +92,6 @@ def test_authentication_decorators_applied(
 @pytest.mark.parametrize(
     "decorator_method,decorator_kwargs,expected_headers,description",
     [
-        ("api_key_auth", {}, {"X-API-Key": "required"}, "api_key_auth default header"),
-        (
-            "api_key_auth",
-            {"header_name": "Authorization"},
-            {"Authorization": "required"},
-            "api_key_auth custom header",
-        ),
         (
             "require_headers",
             {"headers": {"X-API-Version": "v1"}},
@@ -173,7 +166,7 @@ def test_authentication_decorators_unit(security_config: SecurityConfig) -> None
     )
     assert route_config4 is not None
     assert route_config4.api_key_required is True
-    assert route_config4.required_headers["X-API-Key"] == "required"
+    assert route_config4.api_key_header == "X-API-Key"
 
     api_key_custom = decorator.api_key_auth(header_name="X-Custom-Key")
     decorated_func5 = api_key_custom(mock_func)
@@ -182,7 +175,7 @@ def test_authentication_decorators_unit(security_config: SecurityConfig) -> None
     )
     assert route_config5 is not None
     assert route_config5.api_key_required is True
-    assert route_config5.required_headers["X-Custom-Key"] == "required"
+    assert route_config5.api_key_header == "X-Custom-Key"
 
     headers = decorator.require_headers({"X-Test": "value", "X-Other": "required"})
     decorated_func6 = headers(mock_func)

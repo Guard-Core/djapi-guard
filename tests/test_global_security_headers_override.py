@@ -52,7 +52,7 @@ def test_the_global_configure_reaches_a_guarded_app() -> None:
         "app.example"
     )
 
-    security_headers_manager.configure(csp=GLOBAL_CSP)
+    security_headers_manager.configure(csp=GLOBAL_CSP, override_apps=True)
 
     for path in ("/x", "/y"):
         response = middleware(factory.get(path))
@@ -88,4 +88,16 @@ def test_building_a_second_app_does_not_override_the_first() -> None:
     assert first(factory.get("/x"))["Content-Security-Policy"].endswith("app.example")
     assert second(factory.get("/x"))["Content-Security-Policy"].endswith(
         "global.example"
+    )
+
+
+def test_a_call_without_override_apps_does_not_reach_a_guarded_app() -> None:
+    middleware = _middleware()
+    factory = RequestFactory()
+    middleware(factory.get("/x"))
+
+    security_headers_manager.configure(csp=GLOBAL_CSP)
+
+    assert middleware(factory.get("/x"))["Content-Security-Policy"].endswith(
+        "app.example"
     )

@@ -7,6 +7,7 @@ from typing import Any, cast
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.http import HttpRequest, HttpResponse
+from django.utils.cache import patch_vary_headers
 from guard_core.exceptions import GuardRedisError
 from guard_core.models import SecurityConfig
 from guard_core.protocols.response_protocol import GuardResponse
@@ -428,7 +429,12 @@ class DjangoAPIGuard:
             return response
         cors_headers = self._cors_handler.build_response_headers(dict(request.headers))
         for key, value in cors_headers.items():
-            response[key] = value
+            if key.lower() == "vary":
+                patch_vary_headers(
+                    response, [name.strip() for name in value.split(",")]
+                )
+            else:
+                response[key] = value
         return response
 
     def _redis_unavailable_response(self) -> HttpResponse:
@@ -464,14 +470,7 @@ class DjangoAPIGuard:
                 self.behavioral_processor.process_global_return_rules
             ),
         )
-        final = unwrap_response(result)
-        if self._cors_handler:
-            cors_headers = self._cors_handler.build_response_headers(
-                dict(request.headers)
-            )
-            for key, value in cors_headers.items():
-                final[key] = value
-        return final
+        return self._attach_cors_headers(unwrap_response(result), request)
 
     def _initialize_handlers(self) -> None:
         if self.handler_initializer is None:

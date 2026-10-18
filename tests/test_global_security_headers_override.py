@@ -76,3 +76,16 @@ def test_the_response_manager_reaches_the_redis_of_its_app() -> None:
     assert middleware.response_factory.security_headers_manager.redis_handler is (
         middleware.redis_handler
     )
+
+
+def test_building_a_second_app_does_not_override_the_first() -> None:
+    factory = RequestFactory()
+    first = _middleware()
+    second = _middleware(security_headers={"enabled": True, "csp": GLOBAL_CSP})
+    first(factory.get("/x"))
+    second(factory.get("/x"))
+
+    assert first(factory.get("/x"))["Content-Security-Policy"].endswith("app.example")
+    assert second(factory.get("/x"))["Content-Security-Policy"].endswith(
+        "global.example"
+    )

@@ -1358,6 +1358,7 @@ class TestDjangoAPIGuard:
             raise Exception("Redis keys error")
 
         mock_redis.keys = mock_keys
+        mock_redis.delete_pattern = mock_keys
 
         handler.redis_handler = mock_redis
 

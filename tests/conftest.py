@@ -81,7 +81,8 @@ def reset_headers_manager() -> Iterator[None]:
 @pytest.fixture(autouse=True)
 def reset_ratelimit_singleton() -> Iterator[None]:
     yield
-    if RateLimitManager._instance is not None:
-        RateLimitManager._instance.request_timestamps.clear()
-        RateLimitManager._instance.redis_handler = None
-        RateLimitManager._instance.agent_handler = None
+    manager = getattr(RateLimitManager, "_instance", None)
+    if manager is not None:
+        manager.request_timestamps.clear()
+        manager.redis_handler = None
+        manager.agent_handler = None

@@ -1104,8 +1104,7 @@ class TestDjangoAPIGuard:
         middleware = self._make_middleware(config)
         factory = RequestFactory()
 
-        handler = rate_limit_handler(config)
-        handler.reset()
+        middleware.rate_limit_handler.reset()
 
         request = factory.get("/")
         request.META["REMOTE_ADDR"] = "127.0.0.1"
@@ -1125,8 +1124,7 @@ class TestDjangoAPIGuard:
         response = middleware(request)
         assert response.status_code == 429
 
-        handler = rate_limit_handler(config)
-        handler.reset()
+        middleware.rate_limit_handler.reset()
 
         request = factory.get("/")
         request.META["REMOTE_ADDR"] = "127.0.0.1"
@@ -1140,32 +1138,17 @@ class TestDjangoAPIGuard:
         ):
             return self._make_middleware(config)
 
-    def test_lua_script_execution(self) -> None:
-        config = SecurityConfig(
-            enable_redis=True,
-            enable_agent=False,
-            redis_url="redis://localhost:6379",
-            rate_limit=2,
-            rate_limit_window=1,
-            enable_rate_limiting=True,
-        )
+    def _real_redis_rate_limiter(self, config: SecurityConfig) -> tuple[Any, Any]:
+        from guard_core.sync.handlers.redis_handler import RedisManager
+
         middleware = self._make_redis_middleware(config)
         handler = middleware.rate_limit_handler
+        redis = RedisManager(config)
+        redis.initialize()
+        handler.initialize_redis(redis)
+        return handler, redis
 
-        mock_redis_handler = MagicMock()
-        mock_redis_handler.config = config
-        handler.redis_handler = mock_redis_handler
-
-        mock_conn = MagicMock()
-        mock_conn.evalsha = MagicMock(return_value=1)
-
-        mock_context = MagicMock()
-        mock_context.__enter__ = MagicMock(return_value=mock_conn)
-        mock_context.__exit__ = MagicMock(return_value=False)
-        mock_redis_handler.get_connection.return_value = mock_context
-
-        handler.rate_limit_script_sha = "test_script_sha"
-
+    def _three_checks(self, handler: Any) -> list[Any]:
         factory = RequestFactory()
         request = factory.get("/")
         request.META["REMOTE_ADDR"] = "192.168.1.1"
@@ -1176,101 +1159,71 @@ class TestDjangoAPIGuard:
             return DjangoGuardResponse(HttpResponse(message, status=status_code))
 
         guard_request = DjangoGuardRequest(request)
-        result = handler.check_rate_limit(
-            guard_request, "192.168.1.1", create_error_response
+        return [
+            handler.check_rate_limit(
+                guard_request, "192.168.1.1", create_error_response
+            )
+            for _ in range(3)
+        ]
+
+    @staticmethod
+    def _evalsha_calls(redis: Any) -> int:
+        with redis.get_connection() as conn:
+            stats = conn.info("commandstats").get("cmdstat_evalsha", {})
+        return int(stats.get("calls", 0))
+
+    def test_lua_script_execution(self) -> None:
+        config = SecurityConfig(
+            enable_redis=True,
+            enable_agent=False,
+            redis_url="redis://localhost:6379",
+            redis_prefix="test:djangoapi_guard:lua:",
+            rate_limit=2,
+            rate_limit_window=60,
+            enable_rate_limiting=True,
         )
-        assert result is None
+        handler, redis = self._real_redis_rate_limiter(config)
+        try:
+            assert handler.rate_limit_script_sha is not None
+            before = self._evalsha_calls(redis)
+            results = self._three_checks(handler)
+            after = self._evalsha_calls(redis)
 
-        mock_conn.evalsha.assert_called_once()
-
-        mock_conn.evalsha.reset_mock()
-        mock_conn.evalsha.return_value = 3
-
-        result = handler.check_rate_limit(
-            guard_request, "192.168.1.1", create_error_response
-        )
-        assert result is not None
-        assert result.status_code == 429
+            assert results[0] is None
+            assert results[1] is None
+            assert results[2] is not None
+            assert results[2].status_code == 429
+            assert after - before >= 3
+        finally:
+            redis.delete_pattern("rate_limit:rate:*")
+            redis.close()
 
     def test_fallback_to_pipeline(self) -> None:
         config = SecurityConfig(
             enable_redis=True,
             enable_agent=False,
             redis_url="redis://localhost:6379",
+            redis_prefix="test:djangoapi_guard:fallback:",
             rate_limit=2,
-            rate_limit_window=1,
+            rate_limit_window=60,
             enable_rate_limiting=True,
         )
-        middleware = self._make_redis_middleware(config)
-        handler = middleware.rate_limit_handler
+        handler, redis = self._real_redis_rate_limiter(config)
+        try:
+            handler.rate_limit_script_sha = None
+            before = self._evalsha_calls(redis)
+            results = self._three_checks(handler)
+            after = self._evalsha_calls(redis)
 
-        mock_redis_handler = MagicMock()
-        mock_redis_handler.config = config
-        handler.redis_handler = mock_redis_handler
-
-        mock_conn = MagicMock()
-        mock_pipeline = Mock()
-        mock_pipeline.zadd = Mock()
-        mock_pipeline.zremrangebyscore = Mock()
-        mock_pipeline.zcard = Mock()
-        mock_pipeline.expire = Mock()
-        mock_pipeline.execute = Mock(
-            side_effect=[
-                [0, 0, 1, True],
-                [0, 0, 3, True],
-            ]
-        )
-        mock_conn.pipeline = Mock(return_value=mock_pipeline)
-
-        mock_context = MagicMock()
-        mock_context.__enter__ = MagicMock(return_value=mock_conn)
-        mock_context.__exit__ = MagicMock(return_value=False)
-        mock_redis_handler.get_connection.return_value = mock_context
-
-        handler.rate_limit_script_sha = None
-
-        factory = RequestFactory()
-        request = factory.get("/")
-        request.META["REMOTE_ADDR"] = "192.168.1.1"
-
-        def create_error_response(
-            status_code: int, message: str
-        ) -> DjangoGuardResponse:
-            return DjangoGuardResponse(HttpResponse(message, status=status_code))
-
-        guard_request = DjangoGuardRequest(request)
-        result = handler.check_rate_limit(
-            guard_request, "192.168.1.1", create_error_response
-        )
-        assert result is None
-
-        mock_conn.pipeline.assert_called_once()
-        mock_pipeline.zadd.assert_called_once()
-        mock_pipeline.zremrangebyscore.assert_called_once()
-        mock_pipeline.zcard.assert_called_once()
-        mock_pipeline.expire.assert_called_once()
-        mock_pipeline.execute.assert_called_once()
-
-        mock_conn.pipeline.reset_mock()
-        mock_pipeline.zadd.reset_mock()
-        mock_pipeline.zremrangebyscore.reset_mock()
-        mock_pipeline.zcard.reset_mock()
-        mock_pipeline.expire.reset_mock()
-        mock_pipeline.execute.reset_mock()
-
-        result = handler.check_rate_limit(
-            guard_request, "192.168.1.1", create_error_response
-        )
-        assert result is not None
-        assert result.status_code == 429
-        assert result.body == b"Too many requests"
-
-        mock_conn.pipeline.assert_called_once()
-        mock_pipeline.zadd.assert_called_once()
-        mock_pipeline.zremrangebyscore.assert_called_once()
-        mock_pipeline.zcard.assert_called_once()
-        mock_pipeline.expire.assert_called_once()
-        mock_pipeline.execute.assert_called_once()
+            assert results[0] is None
+            assert results[1] is None
+            assert results[2] is not None
+            assert results[2].status_code == 429
+            assert results[2].body == b"Too many requests"
+            assert after == before
+        finally:
+            redis.delete_pattern("rate_limit:rate:*")
+            redis.close()
 
     def test_rate_limiter_redis_errors(self) -> None:
         from redis.exceptions import RedisError

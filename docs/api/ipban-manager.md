@@ -20,7 +20,9 @@ def ban_ip(ip: str, duration: int) -> None: """Ban an IP address for a specified
 
 def is_ip_banned(ip: str) -> bool: """Check if an IP address is currently banned."""
 
-def reset() -> None: """Reset all banned IPs."""
+def reset() -> None: """Reset all banned IPs and every auto-ban strike (memory and Redis)."""
+
+def unban_ip(ip: str) -> None: """Unban an IP address and clear its auto-ban strikes."""
 ```
 
 ___

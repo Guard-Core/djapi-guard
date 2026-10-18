@@ -15,9 +15,14 @@ from django.http import HttpResponse
 from django.test import RequestFactory, override_settings
 from guard_core.models import SecurityConfig
 from guard_core.protocols.response_protocol import GuardResponse
+from guard_core.sync.handlers.security_headers_handler import SecurityHeadersManager
 
 from djangoapi_guard.middleware import DjangoAPIGuard
 from tests import engine_parity_urls
+
+# guard-core 4.5.0 gives a bypass(all) response the security headers; 4.4.0 gave it
+# none. The marker is the per-middleware headers manager of 4.5.0.
+BYPASS_GETS_SECURITY_HEADERS = hasattr(SecurityHeadersManager, "isolated")
 
 
 @pytest.fixture(autouse=True)
@@ -120,7 +125,7 @@ def test_route_bypass_reaches_real_view_and_skips_response_pass() -> None:
     assert b"real view" in resp.content
     assert resp["X-Modified"] == "1"
     assert metrics == []
-    assert "X-Content-Type-Options" not in resp
+    assert ("X-Content-Type-Options" in resp) is BYPASS_GETS_SECURITY_HEADERS
 
 
 def test_blocked_request_emits_no_request_metrics() -> None:

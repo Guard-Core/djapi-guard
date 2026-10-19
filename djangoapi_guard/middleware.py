@@ -1,13 +1,21 @@
+import inspect
 import logging
+import os
+import posixpath
 import re
 import time
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any, cast
 
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
+from django.contrib.staticfiles import finders
+from django.contrib.staticfiles.views import serve as staticfiles_serve
+from django.core.exceptions import ImproperlyConfigured, SuspiciousFileOperation
 from django.http import HttpRequest, HttpResponse
+from django.utils._os import safe_join
 from django.utils.cache import patch_vary_headers
+from django.views.static import serve as static_serve
 from guard_core.exceptions import GuardRedisError
 from guard_core.models import SecurityConfig
 from guard_core.protocols.response_protocol import GuardResponse
@@ -299,6 +307,29 @@ class DjangoAPIGuard:
             return (_route_identity(_resolve_match(path)),)
         except Resolver404:
             return ()
+
+    def static_file_exists(self, path: str) -> bool:
+        from django.urls import Resolver404
+
+        try:
+            match = _resolve_match(path)
+        except Resolver404:
+            return False
+        served = match.kwargs.get("path")
+        if not isinstance(served, str):
+            return False
+        view = inspect.unwrap(match.func)
+        relative = posixpath.normpath(served).lstrip("/")
+        try:
+            if view is static_serve:
+                root = match.kwargs.get("document_root")
+                return root is not None and Path(safe_join(root, relative)).is_file()
+            if view is staticfiles_serve:
+                found = finders.find(relative)
+                return isinstance(found, str) and os.path.isfile(found)
+        except SuspiciousFileOperation:
+            return False
+        return False
 
     def static_route_prefixes(self) -> tuple[str, ...]:
         from django.urls import get_resolver

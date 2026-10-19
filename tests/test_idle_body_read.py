@@ -271,6 +271,7 @@ def test_wsgiref_server_a_complete_body_is_scanned_and_passed_on() -> None:
         ("/files/shop/cart.php", 400),
         ("/missing/cart.php", 400),
         ("/shop/other.php", 400),
+        ("/language/news", 400),
     ],
 )
 def test_a_script_path_is_clean_only_when_the_app_declares_it(

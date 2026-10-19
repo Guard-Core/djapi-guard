@@ -15,4 +15,5 @@ urlpatterns = [
     path("shop/cart.php", page),
     re_path(r"^forum/viewtopic\.php$", page),
     path("files/<path:name>", page),
+    path("<str:language>/news", page),
 ]

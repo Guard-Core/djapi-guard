@@ -52,6 +52,7 @@ def urlconf(tmp_path: Path) -> Iterator[Path]:
         ),
         re_path(r"^collected/(?P<path>.*)$", staticfiles_serve),
         re_path(r"^open/(?P<path>.*)$", serve),
+        re_path(r"^other/(?P<path>.*)$", _page),
         path("page/<path:name>", _page),
     ]
     sys.modules[URLCONF] = module
@@ -123,6 +124,9 @@ def test_the_lookup_is_traversal_safe_and_never_cached(urlconf: Path) -> None:
         assert middleware.static_file_exists("/collected/js/missing.ts") is False
         assert middleware.static_file_exists("/collected/../secret.ts") is False
         assert middleware.static_file_exists("/open/js/served.ts") is False
+        assert middleware.static_file_exists("/other/js/served.ts") is False
+        assert middleware.static_file_exists("/page/served.ts") is False
+        assert middleware.static_file_exists("/nowhere/served.ts") is False
 
 
 STATIC_MOUNT_CORPUS = (

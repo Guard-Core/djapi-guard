@@ -151,6 +151,7 @@ def test_honeypot_form_detection(security_config: SecurityConfig) -> None:
     )
     mock_request.body.return_value = b"bot_trap=filled"
     mock_request.read_body_prefix.return_value = b"bot_trap=filled"
+    mock_request.read_body_prefix_until_idle.return_value = b"bot_trap=filled"
 
     result = validator(mock_request)
     assert result is not None
@@ -206,6 +207,7 @@ def test_honeypot_json_detection(security_config: SecurityConfig) -> None:
     body_bytes = json.dumps({"spam_check": "filled"}).encode()
     mock_request.body.return_value = body_bytes
     mock_request.read_body_prefix.return_value = body_bytes
+    mock_request.read_body_prefix_until_idle.return_value = body_bytes
 
     result = validator(mock_request)
     assert result is not None

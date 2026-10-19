@@ -276,6 +276,7 @@ class DjangoAPIGuard:
 
         try:
             match = _resolve_match(request.path)
+            guard_request.state.guard_route_template = match.route
             view_func = match.func
             if hasattr(view_func, "view_class"):
                 view_func = view_func.view_class

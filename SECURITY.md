@@ -2,19 +2,19 @@
 
 ## Supported Versions
 
-We currently provide security updates for the following versions of DjangoAPI Guard:
+I provide security updates for the following versions of DjangoAPI Guard:
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 2.0.x   | :white_check_mark: |
-| 1.x.x   | :white_check_mark: |
-| < 1.0   | :x:                |
+| Version | Supported |
+| ------- | --------- |
+| 5.x | :white_check_mark: bug and security fixes |
+| 4.x | :white_check_mark: security fixes only |
+| < 4.0 | :x: |
 
 ## Reporting a Vulnerability
 
-We take the security of DjangoAPI Guard seriously. If you believe you've found a security vulnerability, please follow these steps:
+I take the security of DjangoAPI Guard seriously. If you believe you've found a security vulnerability, please follow these steps:
 
-1. **Do not disclose the vulnerability publicly** until it has been addressed by the maintainers.
+1. **Do not disclose the vulnerability publicly** until I have fixed it.
 2. **Report the vulnerability through [GitHub's security advisory feature](https://github.com/Guard-Core/djapi-guard/security/advisories/new)**:
    - Click "New draft security advisory"
    - Fill in the details of the vulnerability
@@ -26,7 +26,7 @@ We take the security of DjangoAPI Guard seriously. If you believe you've found a
    - Affected versions
    - Any potential mitigations or workarounds
 
-The maintainers will acknowledge your report within 48 hours and provide a detailed response within 7 days, including the next steps in handling the vulnerability.
+I will acknowledge your report within 48 hours and send a detailed response within 7 days, including the next steps in handling the vulnerability.
 
 ## Security Best Practices
 
@@ -96,16 +96,16 @@ Note that DjangoAPI Guard is a defense-in-depth measure and should be used along
 
 ## Security Updates
 
-Security updates will be released as needed. We recommend subscribing to GitHub releases or regularly checking for updates to ensure you're using the most secure version.
+Security updates will be released as needed. I recommend subscribing to GitHub releases or regularly checking for updates to ensure you're using the most secure version.
 
 ## Responsible Disclosure
 
-We follow responsible disclosure principles. If you report a vulnerability to us:
+I follow responsible disclosure principles. If you report a vulnerability to me:
 
-1. We will confirm receipt of your vulnerability report
-2. We will provide an estimated timeline for a fix
-3. We will notify you when the vulnerability is fixed
-4. We will publicly acknowledge your responsible disclosure (unless you prefer to remain anonymous)
+1. I will confirm receipt of your vulnerability report
+2. I will provide an estimated timeline for a fix
+3. I will notify you when the vulnerability is fixed
+4. I will publicly acknowledge your responsible disclosure (unless you prefer to remain anonymous)
 
 ## License
 

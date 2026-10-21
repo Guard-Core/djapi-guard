@@ -26,7 +26,8 @@ COPY --chown=app:app djangoapi_guard/ /app/djangoapi_guard/
 COPY --chown=app:app tests/ /app/tests/
 COPY --chown=app:app examples/ /app/examples/
 
-RUN mkdir -p /app/data/ipinfo
+RUN uv pip install --python .venv/bin/python --no-deps -e /app \
+    && mkdir -p /app/data/ipinfo
 
 # Probes the app service on port 8000. Any HTTP answer counts as alive; a refused connection or a timeout fails.
 HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=3 \

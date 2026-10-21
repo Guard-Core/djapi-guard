@@ -38,6 +38,7 @@ dev = [
     "bandit[toml]",
     "deptry",
     "django-stubs",
+    "gunicorn",
     "guard-agent",
     "httpx",
     "mkdocs",
@@ -220,6 +221,7 @@ known_first_party = ["djangoapi_guard", "guard_core"]
 per_rule_ignores = { "DEP002" = [
     "bandit",
     "django-stubs",
+    "gunicorn",
     "guard-agent",
     "guard-core",
     "httpx",

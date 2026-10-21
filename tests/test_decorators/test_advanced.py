@@ -149,7 +149,7 @@ def test_honeypot_form_detection(security_config: SecurityConfig) -> None:
         "application/x-www-form-urlencoded" if key == "content-type" else default
     )
     mock_request.body.return_value = b"bot_trap=filled"
-    mock_request.read_body_prefix.return_value = b"bot_trap=filled"
+    mock_request.read_body_prefix = lambda _max_bytes: b"bot_trap=filled"
 
     result = validator(mock_request)
     assert result is not None
@@ -202,7 +202,7 @@ def test_honeypot_json_detection(security_config: SecurityConfig) -> None:
     )
     body_bytes = json.dumps({"spam_check": "filled"}).encode()
     mock_request.body.return_value = body_bytes
-    mock_request.read_body_prefix.return_value = body_bytes
+    mock_request.read_body_prefix = lambda _max_bytes: body_bytes
 
     result = validator(mock_request)
     assert result is not None

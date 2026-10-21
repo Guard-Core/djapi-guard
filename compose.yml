@@ -5,14 +5,14 @@ services:
         args:
           PYTHON_VERSION: ${PYTHON_VERSION:-3.10}
       image: djapi-guard-example-py${PYTHON_VERSION:-3.10}
-      command: gunicorn examples.simple.example_project.wsgi:application --bind 0.0.0.0:8000 --reload
+      command: gunicorn --chdir examples/simple example_project.wsgi:application --bind 0.0.0.0:8000 --reload
       ports:
         - "8000:8000"
       environment:
         - REDIS_URL=redis://redis:6379
         - REDIS_PREFIX=${REDIS_PREFIX:-"djangoapi_guard:"}
         - IPINFO_TOKEN=${IPINFO_TOKEN:-"test_token"}
-        - DJANGO_SETTINGS_MODULE=examples.simple.example_project.settings
+        - DJANGO_SETTINGS_MODULE=example_project.settings
       volumes:
         - ./examples:/app/examples:z
         - ./djangoapi_guard:/app/djangoapi_guard:z
@@ -38,7 +38,6 @@ services:
         - ./djangoapi_guard:/app/djangoapi_guard:z
         - ./tests:/app/tests:z
         - ./pyproject.toml:/app/pyproject.toml:z
-        - ./uv.lock:/app/uv.lock:z
         - ./vulture_whitelist.py:/app/vulture_whitelist.py:z
       depends_on:
         redis:

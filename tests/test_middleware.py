@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 import time
 from collections.abc import Awaitable, Callable, Iterator
@@ -24,6 +25,8 @@ from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 from djangoapi_guard import SecurityDecorator
 from djangoapi_guard.adapters import DjangoGuardRequest, DjangoGuardResponse
 from djangoapi_guard.middleware import DjangoAPIGuard
+
+REDIS_URL = os.getenv("REDIS_URL") or "redis://localhost:6379"
 
 
 @pytest.fixture(autouse=True)
@@ -782,7 +785,7 @@ class TestDjangoAPIGuard:
         config = SecurityConfig(
             enable_redis=True,
             enable_agent=False,
-            redis_url="redis://localhost:6379",
+            redis_url=REDIS_URL,
             block_cloud_providers={"AWS"},
         )
         with (
@@ -815,7 +818,7 @@ class TestDjangoAPIGuard:
         config = SecurityConfig(
             enable_redis=True,
             enable_agent=False,
-            redis_url="redis://localhost:6379",
+            redis_url=REDIS_URL,
         )
         with (
             patch(
@@ -1144,7 +1147,7 @@ class TestDjangoAPIGuard:
         config = SecurityConfig(
             enable_redis=True,
             enable_agent=False,
-            redis_url="redis://localhost:6379",
+            redis_url=REDIS_URL,
             rate_limit=2,
             rate_limit_window=1,
             enable_rate_limiting=True,
@@ -1196,7 +1199,7 @@ class TestDjangoAPIGuard:
         config = SecurityConfig(
             enable_redis=True,
             enable_agent=False,
-            redis_url="redis://localhost:6379",
+            redis_url=REDIS_URL,
             rate_limit=2,
             rate_limit_window=1,
             enable_rate_limiting=True,
@@ -1278,7 +1281,7 @@ class TestDjangoAPIGuard:
         config = SecurityConfig(
             enable_redis=True,
             enable_agent=False,
-            redis_url="redis://localhost:6379",
+            redis_url=REDIS_URL,
             rate_limit=2,
             rate_limit_window=1,
             enable_rate_limiting=True,
@@ -1362,7 +1365,7 @@ class TestDjangoAPIGuard:
         config = SecurityConfig(
             enable_redis=True,
             enable_agent=False,
-            redis_url="redis://localhost:6379",
+            redis_url=REDIS_URL,
         )
         handler = rate_limit_handler(config)
 
@@ -1390,7 +1393,7 @@ class TestDjangoAPIGuard:
         config = SecurityConfig(
             enable_redis=True,
             enable_agent=False,
-            redis_url="redis://localhost:6379",
+            redis_url=REDIS_URL,
             rate_limit=2,
             enable_rate_limiting=True,
         )

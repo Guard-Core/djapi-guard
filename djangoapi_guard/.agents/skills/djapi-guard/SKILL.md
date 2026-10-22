@@ -15,7 +15,7 @@ DjAPI Guard is a thin adapter: all security logic (models, handlers, decorators,
 * Wire the middleware: add `djangoapi_guard.middleware.DjangoAPIGuard` to `MIDDLEWARE` and set `GUARD_SECURITY_CONFIG = SecurityConfig(...)` in settings; see [Setup](#setup).
 * All behavior is guard-core's `SecurityConfig`; do not mutate handlers directly.
 * Route rules: `SecurityDecorator` from the sync mirror writes per-route `RouteConfig` the middleware resolves at request time via `_guard_route_id` on view functions.
-* Register the decorator handler (`middleware.set_decorator_handler`) so decorator-only checks are built into the pipeline.
+* The middleware adopts the `djangoapi_guard.SecurityDecorator` the project built on the first request, so decorating views is enough. With more than one decorator, set `GUARD_DECORATOR` in settings (instance or dotted path); `middleware.set_decorator_handler` stays for code that holds the middleware.
 * Sync only: custom callables must be plain functions, Redis uses `redis.Redis`, IP comes from `request.META`.
 
 ## Installation
@@ -51,7 +51,7 @@ GUARD_SECURITY_CONFIG = SecurityConfig(
 
 ## Route-Level Security Decorators
 
-Decorators from `guard_core.sync.decorators` write per-route `RouteConfig` objects. The middleware's route resolver maps Django URL patterns to those configs via the `_guard_route_id` attribute set on view functions, for both function-based and class-based views. Pass your `SecurityDecorator` to `middleware.set_decorator_handler` so the pipeline is derived from the registered routes; checks that only decorators can trigger (auth, referrer, required headers, custom validators, time window, request size/content) are built only when the middleware can see the route config.
+Decorators from `guard_core.sync.decorators` write per-route `RouteConfig` objects. The middleware's route resolver maps Django URL patterns to those configs via the `_guard_route_id` attribute set on view functions, for both function-based and class-based views. The middleware adopts the single `djangoapi_guard.SecurityDecorator` the project built (or the one named by `settings.GUARD_DECORATOR`) on its first request, so the pipeline is derived from the registered routes without any call into the middleware; checks that only decorators can trigger (auth, referrer, required headers, custom validators, time window, request size/content) are built only when the middleware can see the route config.
 
 `RouteConfig.bypassed_checks` accepts only recognized tokens (`all`, `ip_ban`, `ip`, `clouds`, `rate_limit`, `penetration`); an unknown token is dropped with a warning, so a typo cannot make a check look disabled while it stays enforced.
 
@@ -67,7 +67,7 @@ Decorators from `guard_core.sync.decorators` write per-route `RouteConfig` objec
 * **`GUARD_SECURITY_CONFIG` must be a `SecurityConfig` instance.** A plain dict from older docs is not converted by the middleware; construct `SecurityConfig(**settings_dict)` in settings if you keep a dict around.
 * **`enable_redis` defaults to `True`** with `redis_url="redis://localhost:6379"`. Without a reachable Redis, stateful checks fail; set `enable_redis=False` in no-Redis environments or point at a real instance.
 * **Async callables are rejected.** Any `async def` custom check, validator, or modifier raises `TypeError`; convert to a sync function.
-* **Decorator-only checks vanish without a decorator handler.** Without `set_decorator_handler`, decorator-triggered checks are not built and their rules never fire.
+* **Decorator-only checks need exactly one adoptable decorator.** With several `SecurityDecorator` instances and no `settings.GUARD_DECORATOR`, none is adopted, decorator-triggered checks do not fire and one warning per process names the setting. A decorator built from `guard_core.sync.decorators` directly is not registered either; import `SecurityDecorator` from `djangoapi_guard` or set `GUARD_DECORATOR`.
 * **`passive_mode=True` logs but never blocks.** Use it to trial rules; switch to `False` once logs confirm the traffic you expect.
 * **Tests need Django settings.** The suite uses pytest-django with `DJANGO_SETTINGS_MODULE = "tests.settings"` from pyproject; new test modules should not call `django.setup()` themselves.
 

@@ -2,7 +2,7 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 
 from guard_core import SecurityConfig
-from guard_core.sync.decorators import RouteConfig, SecurityDecorator
+from guard_core.sync.decorators import RouteConfig
 from guard_core.sync.handlers.behavior_handler import BehaviorRule, BehaviorTracker
 from guard_core.sync.handlers.cloud_handler import CloudManager, cloud_handler
 from guard_core.sync.handlers.ipban_handler import IPBanManager, ip_ban_manager
@@ -26,6 +26,7 @@ from guard_core.sync.protocols.request_protocol import (
 )
 from guard_core.sync.protocols.response_protocol import GuardResponse
 
+from djangoapi_guard._decorator_adoption import SecurityDecorator
 from djangoapi_guard.middleware import DjangoAPIGuard
 
 try:

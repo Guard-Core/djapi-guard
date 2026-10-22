@@ -36,12 +36,15 @@ from guard_core.sync.handlers.security_headers_handler import security_headers_m
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 from guard_core.sync.utils import extract_client_ip, setup_custom_logging
 
+from djangoapi_guard._decorator_adoption import resolve_decorator
 from djangoapi_guard.adapters import (
     DjangoGuardRequest,
     DjangoGuardResponse,
     DjangoResponseFactory,
     unwrap_response,
 )
+
+_decorator_missing_warned = False
 
 
 def _resolve_match(path: str) -> Any:
@@ -293,10 +296,24 @@ class DjangoAPIGuard:
             )
             if hasattr(view_func, "_guard_route_id"):
                 guard_request.state.guard_route_id = view_func._guard_route_id
+                self._warn_once_decorator_missing()
             if getattr(self.security_pipeline, "needs_route_identity", False):
                 guard_request.state.guard_route_identity = _route_identity(match)
         except Resolver404:
             guard_request.state.guard_route_unresolved = True
+
+    def _warn_once_decorator_missing(self) -> None:
+        global _decorator_missing_warned
+        if self.guard_decorator is not None or _decorator_missing_warned:
+            return
+        _decorator_missing_warned = True
+        self.logger.warning(
+            "A decorated view was reached but no decorator is registered with "
+            "DjangoAPIGuard, so its route decorators are not enforced. Build the "
+            "decorator with djangoapi_guard.SecurityDecorator (adopted "
+            "automatically when it is the only one) or set "
+            "settings.GUARD_DECORATOR to the decorator or its dotted path."
+        )
 
     def resolve_route(
         self, path: str
@@ -339,6 +356,9 @@ class DjangoAPIGuard:
     def _ensure_handlers_initialized(self, request: HttpRequest) -> HttpResponse | None:
         if self._handlers_initialized:
             return None
+        adopted = resolve_decorator() if self.guard_decorator is None else None
+        if adopted is not None:
+            self.set_decorator_handler(adopted)
         try:
             self._initialize_handlers()
         except GuardRedisError as e:

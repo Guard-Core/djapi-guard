@@ -21,6 +21,7 @@ from django.http import JsonResponse
 
 guard_deco = SecurityDecorator(config)
 
+
 @guard_deco.time_window("09:00", "17:00", "EST")
 def generate_reports(request):
     return JsonResponse({"message": "Reports are only available during business hours"})

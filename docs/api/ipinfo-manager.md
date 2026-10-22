@@ -16,11 +16,16 @@ Methods
 -------
 
 ```python
-def initialize(self): """Initialize and download the database if needed."""
+def initialize(self):
+    """Initialize and download the database if needed."""
 
-def get_country(self, ip: str) -> str | None: """Get country code for an IP address."""
 
-def close(self): """Close the database connection."""
+def get_country(self, ip: str) -> str | None:
+    """Get country code for an IP address."""
+
+
+def close(self):
+    """Close the database connection."""
 ```
 
 ___

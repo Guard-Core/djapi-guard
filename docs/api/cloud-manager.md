@@ -16,11 +16,16 @@ Methods
 -------
 
 ```python
-def refresh(self, providers=_ALL_PROVIDERS, ttl=3600): """Refresh IP ranges."""
+def refresh(self, providers=_ALL_PROVIDERS, ttl=3600):
+    """Refresh IP ranges."""
 
-def is_cloud_ip(self, ip: str, providers: set[str]) -> bool: """Check if IP belongs to cloud providers."""
 
-def initialize_redis(self, redis_handler, providers=_ALL_PROVIDERS, ttl=3600): """Initialize Redis integration."""
+def is_cloud_ip(self, ip: str, providers: set[str]) -> bool:
+    """Check if IP belongs to cloud providers."""
+
+
+def initialize_redis(self, redis_handler, providers=_ALL_PROVIDERS, ttl=3600):
+    """Initialize Redis integration."""
 ```
 
 ___

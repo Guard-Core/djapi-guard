@@ -38,7 +38,7 @@ GUARD_SECURITY_CONFIG = SecurityConfig(
     geo_ip_handler=IPInfoManager("your_ipinfo_token_here"),
     blocked_countries=["CN", "RU"],
     whitelist_countries=["US", "CA"],
-    block_cloud_providers={"AWS", "GCP"}
+    block_cloud_providers={"AWS", "GCP"},
 )
 ```
 
@@ -52,6 +52,7 @@ class CustomGeoIPHandler:
     def initialize(self) -> None: ...
     def initialize_redis(self, redis_handler: "RedisManager") -> None: ...
     def get_country(self, ip: str) -> str | None: ...
+
 
 GUARD_SECURITY_CONFIG = SecurityConfig(
     geo_ip_handler=CustomGeoIPHandler(),
@@ -67,7 +68,7 @@ Country Blocking
 ```python
 GUARD_SECURITY_CONFIG = SecurityConfig(
     geo_ip_handler=IPInfoManager("your_ipinfo_token_here"),
-    blocked_countries=["CN", "RU", "IR", "KP"]
+    blocked_countries=["CN", "RU", "IR", "KP"],
 )
 ```
 
@@ -79,7 +80,7 @@ Country Whitelisting
 ```python
 GUARD_SECURITY_CONFIG = SecurityConfig(
     geo_ip_handler=IPInfoManager("your_ipinfo_token_here"),
-    whitelist_countries=["US", "CA", "GB", "AU"]
+    whitelist_countries=["US", "CA", "GB", "AU"],
 )
 ```
 
@@ -94,6 +95,7 @@ from django.http import JsonResponse
 
 ipinfo_db = IPInfoManager(token="your_ipinfo_token_here")
 ipinfo_db.initialize()
+
 
 def get_ip_country(request, ip):
     country = ipinfo_db.get_country(ip)

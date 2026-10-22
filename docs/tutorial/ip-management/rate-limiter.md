@@ -20,8 +20,8 @@ Basic Configuration
 from djangoapi_guard import SecurityConfig
 
 GUARD_SECURITY_CONFIG = SecurityConfig(
-    rate_limit=100,               # Maximum number of requests allowed
-    rate_limit_window=60,         # Time window in seconds
+    rate_limit=100,  # Maximum number of requests allowed
+    rate_limit_window=60,  # Time window in seconds
 )
 ```
 
@@ -58,7 +58,7 @@ GUARD_SECURITY_CONFIG = SecurityConfig(
     rate_limit=100,
     rate_limit_window=60,
     redis_url="redis://localhost:6379/0",
-    redis_prefix="myapp:"
+    redis_prefix="myapp:",
 )
 ```
 
@@ -71,9 +71,7 @@ Custom Response Messages
 GUARD_SECURITY_CONFIG = SecurityConfig(
     rate_limit=100,
     rate_limit_window=60,
-    custom_error_responses={
-        429: "Rate limit exceeded. Please try again later."
-    }
+    custom_error_responses={429: "Rate limit exceeded. Please try again later."},
 )
 ```
 

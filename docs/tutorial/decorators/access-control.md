@@ -26,6 +26,7 @@ from django.http import JsonResponse
 
 guard_deco = SecurityDecorator(config)
 
+
 @guard_deco.require_ip(whitelist=["192.168.1.0/24", "10.0.0.1"])
 def internal_endpoint(request):
     return JsonResponse({"message": "Internal network access only"})
@@ -98,6 +99,7 @@ An unknown token is ignored and logged as a warning naming it, so a typo leaves 
 def health_check(request):
     return JsonResponse({"status": "healthy"})
 
+
 @guard_deco.bypass(["all"])  # Bypass all security checks
 def public_health_check(request):
     return JsonResponse({"status": "public health endpoint"})
@@ -109,9 +111,9 @@ Combining Access Controls
 -------------------------
 
 ```python
-@guard_deco.require_ip(whitelist=["10.0.0.0/8"])       # Internal network only
-@guard_deco.allow_countries(["US", "CA"])              # North America only
-@guard_deco.block_clouds(["AWS", "GCP"])               # No cloud providers
+@guard_deco.require_ip(whitelist=["10.0.0.0/8"])  # Internal network only
+@guard_deco.allow_countries(["US", "CA"])  # North America only
+@guard_deco.block_clouds(["AWS", "GCP"])  # No cloud providers
 def ultra_secure_endpoint(request):
     return JsonResponse({"data": "Maximum security endpoint"})
 ```

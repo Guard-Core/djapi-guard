@@ -33,6 +33,7 @@ Integration with Decorators
 ```python
 guard_deco = SecurityDecorator(config)
 
+
 @guard_deco.usage_monitor(max_calls=10, window=3600, action="ban")
 @guard_deco.return_monitor("rare_item", max_occurrences=3, window=86400, action="alert")
 def rewards_endpoint(request):

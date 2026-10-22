@@ -16,9 +16,7 @@ Basic Logging
 -------------
 
 ```python
-GUARD_SECURITY_CONFIG = SecurityConfig(
-    custom_log_file="/path/to/security.log"
-)
+GUARD_SECURITY_CONFIG = SecurityConfig(custom_log_file="/path/to/security.log")
 ```
 
 ___
@@ -29,7 +27,7 @@ Passive Mode for Penetration Detection
 ```python
 GUARD_SECURITY_CONFIG = SecurityConfig(
     enable_penetration_detection=True,
-    passive_mode=True  # Log but don't block
+    passive_mode=True,  # Log but don't block
 )
 ```
 
@@ -40,8 +38,7 @@ Configurable Log Levels
 
 ```python
 GUARD_SECURITY_CONFIG = SecurityConfig(
-    log_request_level="INFO",
-    log_suspicious_level="WARNING"
+    log_request_level="INFO", log_suspicious_level="WARNING"
 )
 ```
 

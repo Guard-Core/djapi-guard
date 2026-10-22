@@ -66,8 +66,7 @@ set_decorator_handler
 
 ```python
 def set_decorator_handler(
-    self,
-    decorator_handler: BaseSecurityDecorator | None
+    self, decorator_handler: BaseSecurityDecorator | None
 ) -> None:
     """Set the SecurityDecorator instance for decorator support."""
 ```
@@ -76,11 +75,7 @@ create_error_response
 ---------------------
 
 ```python
-def create_error_response(
-    self,
-    status_code: int,
-    default_message: str
-) -> HttpResponse:
+def create_error_response(self, status_code: int, default_message: str) -> HttpResponse:
     """Create standardized error responses."""
 ```
 
@@ -105,9 +100,7 @@ Basic Setup
 from djangoapi_guard import SecurityConfig
 
 GUARD_SECURITY_CONFIG = SecurityConfig(
-    rate_limit=100,
-    enforce_https=True,
-    enable_cors=True
+    rate_limit=100, enforce_https=True, enable_cors=True
 )
 
 MIDDLEWARE = [
@@ -125,6 +118,7 @@ from djangoapi_guard import SecurityConfig
 
 config = SecurityConfig(rate_limit=100)
 guard_deco = SecurityDecorator(config)
+
 
 @guard_deco.rate_limit(requests=10, window=300)
 def limited_endpoint(request):

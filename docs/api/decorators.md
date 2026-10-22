@@ -27,6 +27,7 @@ from djangoapi_guard import SecurityDecorator
 config = SecurityConfig()
 guard_deco = SecurityDecorator(config)
 
+
 @guard_deco.rate_limit(requests=5, window=300)
 @guard_deco.require_ip(whitelist=["10.0.0.0/8"])
 def sensitive_endpoint(request):

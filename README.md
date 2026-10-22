@@ -209,6 +209,8 @@ from djangoapi_guard.middleware import DjangoAPIGuard
 def agent_health(request):
     middleware: DjangoAPIGuard = request._guard_middleware
     return JsonResponse(middleware.agent_stats)
+
+
 # {"enabled": True,
 #  "buffer_stats": {"events_dropped": 0, "metrics_dropped": 0, ...},
 #  "transport_stats": {"circuit_breaker_state": "CLOSED", ...}}
@@ -283,6 +285,7 @@ GUARD_SECURITY_CONFIG = SecurityConfig(
 ```python
 from django.http import JsonResponse
 
+
 def read_root(request):
     return JsonResponse({"message": "Hello, World!"})
 ```
@@ -354,6 +357,7 @@ Detect and log potential penetration attempts using the `detect_penetration_atte
 ```python
 from django.http import JsonResponse
 from djangoapi_guard.utils import detect_penetration_attempt
+
 
 def submit_data(request):
     is_suspicious, trigger_info = detect_penetration_attempt(request)
@@ -485,13 +489,16 @@ from django.conf import settings
 
 guard_deco = SecurityDecorator(settings.GUARD_SECURITY_CONFIG)
 
+
 # Apply decorators to specific views
 def public_endpoint(request):
     return JsonResponse({"data": "public"})
 
+
 @guard_deco.rate_limit(requests=10, window=300)  # 10 requests per 5 minutes
 def limited_endpoint(request):
     return JsonResponse({"data": "limited"})
+
 
 @guard_deco.require_ip(whitelist=["192.168.1.0/24"])
 @guard_deco.block_countries(["CN", "RU"])
@@ -554,13 +561,15 @@ Combine multiple decorators for comprehensive protection:
 ```python
 from django.http import JsonResponse
 
-@guard_deco.require_https()                        # Security requirement
-@guard_deco.require_auth(type="bearer")            # Authentication
-@guard_deco.require_ip(whitelist=["10.0.0.0/8"])   # Access control
-@guard_deco.rate_limit(requests=5, window=3600)    # Rate limiting
-@guard_deco.suspicious_detection(enabled=True)     # Monitoring
+
+@guard_deco.require_https()  # Security requirement
+@guard_deco.require_auth(type="bearer")  # Authentication
+@guard_deco.require_ip(whitelist=["10.0.0.0/8"])  # Access control
+@guard_deco.rate_limit(requests=5, window=3600)  # Rate limiting
+@guard_deco.suspicious_detection(enabled=True)  # Monitoring
 def admin_endpoint(request):
     return JsonResponse({"status": "admin action"})
+
 
 @guard_deco.usage_monitor(max_calls=50, window=3600, action="ban")
 @guard_deco.return_monitor("rare_item", max_occurrences=3, window=86400, action="ban")
@@ -593,9 +602,12 @@ Configure trusted proxies to securely handle X-Forwarded-For headers:
 
 ```python
 GUARD_SECURITY_CONFIG = SecurityConfig(
-    trusted_proxies=["10.0.0.1", "192.168.1.0/24"],  # List of trusted proxy IPs or CIDR ranges
-    trusted_proxy_depth=1,                           # How many proxies to expect in chain
-    trust_x_forwarded_proto=True,                    # Whether to trust X-Forwarded-Proto for HTTPS detection (default: True)
+    trusted_proxies=[
+        "10.0.0.1",
+        "192.168.1.0/24",
+    ],  # List of trusted proxy IPs or CIDR ranges
+    trusted_proxy_depth=1,  # How many proxies to expect in chain
+    trust_x_forwarded_proto=True,  # Whether to trust X-Forwarded-Proto for HTTPS detection (default: True)
 )
 ```
 
@@ -622,7 +634,10 @@ from djangoapi_guard.protocols.geo_ip_protocol import GeoIPHandler
 
 GUARD_SECURITY_CONFIG = SecurityConfig(
     geo_ip_handler=GeoIPHandler,
-    blocked_countries=["AR", "IT"],   # Block specific countries using ISO 3166-1 alpha-2 codes
+    blocked_countries=[
+        "AR",
+        "IT",
+    ],  # Block specific countries using ISO 3166-1 alpha-2 codes
     whitelist_countries=["US", "CA"],  # Optional: Only allow specific countries
 )
 ```
@@ -633,6 +648,7 @@ You can also use a service other than IPInfo, as long as you implement the same 
 
 ```python
 # Implement the required methods of djangoapi_guard.protocols.geo_ip_protocol.GeoIPHandler protocol
+
 
 class GeoIPHandler:
     """
@@ -659,7 +675,10 @@ class GeoIPHandler:
 
 GUARD_SECURITY_CONFIG = SecurityConfig(
     geo_ip_handler=GeoIPHandler,
-    blocked_countries=["AR", "IT"],  # Block specific countries using ISO 3166-1 alpha-2 codes
+    blocked_countries=[
+        "AR",
+        "IT",
+    ],  # Block specific countries using ISO 3166-1 alpha-2 codes
     whitelist_countries=["US", "CA"],  # Optional: Only allow specific countries
 )
 ```
@@ -672,10 +691,12 @@ You can define a custom function to perform additional checks on the request usi
 from django.http import HttpResponse
 from typing import Optional
 
+
 def custom_check(req) -> Optional[HttpResponse]:
     if "X-Custom-Header" not in req.headers:
         return HttpResponse("Missing custom header", status=400)
     return None
+
 
 GUARD_SECURITY_CONFIG = SecurityConfig(
     custom_request_check=custom_check,
@@ -689,12 +710,16 @@ You can define a custom function to modify the response before it's sent using t
 ```python
 from django.http import HttpResponse, JsonResponse
 
+
 def custom_modifier(response: HttpResponse) -> HttpResponse:
     # Add custom headers
     response["X-Custom-Header"] = "CustomValue"
 
     # Convert text responses to JSON responses
-    if response.status_code >= 400 and response.get("Content-Type") != "application/json":
+    if (
+        response.status_code >= 400
+        and response.get("Content-Type") != "application/json"
+    ):
         try:
             content = response.content.decode("utf-8")
             json_response = JsonResponse({"detail": content})
@@ -704,6 +729,7 @@ def custom_modifier(response: HttpResponse) -> HttpResponse:
             pass
 
     return response
+
 
 GUARD_SECURITY_CONFIG = SecurityConfig(
     custom_response_modifier=custom_modifier,
@@ -760,6 +786,7 @@ from djangoapi_guard import SecurityConfig, BehaviorRule
 from django.http import JsonResponse
 
 # Global behavioral rules can be defined in config
+
 
 # Per-view behavioral monitoring via decorators
 @guard_deco.usage_monitor(max_calls=50, window=3600, action="ban")

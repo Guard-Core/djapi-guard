@@ -25,9 +25,7 @@ Basic Configuration
 -------------------
 
 ```python
-GUARD_SECURITY_CONFIG = SecurityConfig(
-    block_cloud_providers={"AWS", "GCP", "Azure"}
-)
+GUARD_SECURITY_CONFIG = SecurityConfig(block_cloud_providers={"AWS", "GCP", "Azure"})
 ```
 
 ___
@@ -48,6 +46,7 @@ You can also manually trigger a refresh:
 
 ```python
 from djangoapi_guard import cloud_handler
+
 cloud_handler.refresh()
 ```
 
@@ -73,6 +72,7 @@ Custom IP Checking
 ```python
 from djangoapi_guard import cloud_handler
 from django.http import JsonResponse
+
 
 def check_cloud_ip(request, ip):
     is_cloud = cloud_handler.is_cloud_ip(ip, providers={"AWS", "GCP", "Azure"})

@@ -21,6 +21,7 @@ from django.http import JsonResponse
 
 guard_deco = SecurityDecorator(config)
 
+
 @guard_deco.require_https()
 def login(request):
     return JsonResponse({"token": "secure_jwt_token"})
@@ -54,10 +55,9 @@ Required Headers
 ----------------
 
 ```python
-@guard_deco.require_headers({
-    "X-Requested-With": "XMLHttpRequest",
-    "X-CSRF-Token": "required"
-})
+@guard_deco.require_headers(
+    {"X-Requested-With": "XMLHttpRequest", "X-CSRF-Token": "required"}
+)
 def secure_endpoint(request):
     return JsonResponse({"data": "csrf protected"})
 ```
@@ -68,13 +68,10 @@ Combined Authentication Patterns
 --------------------------------
 
 ```python
-@guard_deco.require_https()                          # Secure connection
-@guard_deco.require_auth(type="bearer")              # Bearer token
+@guard_deco.require_https()  # Secure connection
+@guard_deco.require_auth(type="bearer")  # Bearer token
 @guard_deco.api_key_auth(header_name="X-Admin-Key")  # Admin API key
-@guard_deco.require_headers({
-    "X-CSRF-Token": "required",
-    "X-Request-ID": "required"
-})
+@guard_deco.require_headers({"X-CSRF-Token": "required", "X-Request-ID": "required"})
 def critical_admin_endpoint(request):
     return JsonResponse({"status": "critical operation completed"})
 ```

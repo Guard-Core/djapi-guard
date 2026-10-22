@@ -104,7 +104,7 @@ Default security_headers configuration:
     "hsts": {
         "max_age": 31536000,  # 1 year
         "include_subdomains": True,
-        "preload": False
+        "preload": False,
     },
     "csp": None,  # Content Security Policy directives
     "frame_options": "SAMEORIGIN",
@@ -112,7 +112,7 @@ Default security_headers configuration:
     "xss_protection": "1; mode=block",
     "referrer_policy": "strict-origin-when-cross-origin",
     "permissions_policy": "geolocation=(), microphone=(), camera=()",
-    "custom": None  # Additional custom headers
+    "custom": None,  # Additional custom headers
 }
 ```
 
@@ -149,14 +149,13 @@ from djangoapi_guard import SecurityConfig
 GUARD_SECURITY_CONFIG = SecurityConfig(
     enable_penetration_detection=True,
     auto_ban_threshold=5,
-    detection_semantic_threshold=0.7
+    detection_semantic_threshold=0.7,
 )
 
 # Full configuration
 GUARD_SECURITY_CONFIG = SecurityConfig(
     # Core settings
     passive_mode=False,
-
     # Detection engine
     enable_penetration_detection=True,
     detection_compiler_timeout=2.0,
@@ -167,35 +166,26 @@ GUARD_SECURITY_CONFIG = SecurityConfig(
     detection_slow_pattern_threshold=0.1,
     detection_monitor_history_size=1000,
     detection_max_tracked_patterns=1000,
-
     # Security headers
     security_headers={
         "enabled": True,
-        "hsts": {
-            "max_age": 31536000,
-            "include_subdomains": True,
-            "preload": False
-        },
+        "hsts": {"max_age": 31536000, "include_subdomains": True, "preload": False},
         "csp": {
             "default-src": ["'self'"],
             "script-src": ["'self'", "https://cdn.example.com"],
         },
         "frame_options": "DENY",
     },
-
     # Redis
     enable_redis=True,
     redis_url="redis://localhost:6379",
-
     # Agent
     enable_agent=True,
     agent_api_key="your-api-key",
-
     # Logging
     custom_log_file="security.log",
     log_suspicious_level="WARNING",
     log_format="json",
-
     # Cloud IP refresh
     cloud_ip_refresh_interval=1800,
 )
@@ -224,9 +214,9 @@ except ValidationError as e:
 
 # Valid ranges
 config = SecurityConfig(
-    detection_compiler_timeout=2.0,      # 0.1 - 10.0
-    detection_semantic_threshold=0.7,    # 0.0 - 1.0
-    detection_anomaly_threshold=3.0,     # 1.0 - 10.0
+    detection_compiler_timeout=2.0,  # 0.1 - 10.0
+    detection_semantic_threshold=0.7,  # 0.0 - 1.0
+    detection_anomaly_threshold=3.0,  # 1.0 - 10.0
 )
 ```
 

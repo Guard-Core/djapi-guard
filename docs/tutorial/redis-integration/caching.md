@@ -19,7 +19,7 @@ Basic Configuration
 GUARD_SECURITY_CONFIG = SecurityConfig(
     enable_redis=True,
     redis_url="redis://prod-redis:6379/1",
-    redis_prefix="myapp:security:"
+    redis_prefix="myapp:security:",
 )
 ```
 
@@ -57,11 +57,7 @@ with redis.get_connection() as conn:
     conn.set("key", "value")
 
 # Automatic operation retry
-redis.safe_operation(
-    lambda conn: conn.get("my_key"),
-    namespace="data",
-    key="my_key"
-)
+redis.safe_operation(lambda conn: conn.get("my_key"), namespace="data", key="my_key")
 ```
 
 ___

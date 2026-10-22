@@ -19,10 +19,7 @@ Enable CORS with default settings:
 
 ```python
 # settings.py
-GUARD_SECURITY_CONFIG = SecurityConfig(
-    enable_cors=True,
-    cors_allow_origins=["*"]
-)
+GUARD_SECURITY_CONFIG = SecurityConfig(enable_cors=True, cors_allow_origins=["*"])
 ```
 
 ___
@@ -35,15 +32,12 @@ Configure specific CORS settings:
 ```python
 GUARD_SECURITY_CONFIG = SecurityConfig(
     enable_cors=True,
-    cors_allow_origins=[
-        "https://example.com",
-        "https://api.example.com"
-    ],
+    cors_allow_origins=["https://example.com", "https://api.example.com"],
     cors_allow_methods=["GET", "POST", "PUT", "DELETE"],
     cors_allow_headers=["*"],
     cors_allow_credentials=True,
     cors_expose_headers=["X-Custom-Header"],
-    cors_max_age=600
+    cors_max_age=600,
 )
 ```
 
@@ -57,10 +51,7 @@ Use patterns to match multiple origins:
 ```python
 GUARD_SECURITY_CONFIG = SecurityConfig(
     enable_cors=True,
-    cors_allow_origins=[
-        "https://*.example.com",
-        "https://*.api.example.com"
-    ]
+    cors_allow_origins=["https://*.example.com", "https://*.api.example.com"],
 )
 ```
 
@@ -77,7 +68,7 @@ GUARD_SECURITY_CONFIG = SecurityConfig(
     cors_allow_credentials=True,
     cors_allow_origins=[
         "https://app.example.com"  # Must be specific origin when using credentials
-    ]
+    ],
 )
 ```
 
@@ -91,13 +82,7 @@ Configure custom headers for CORS:
 ```python
 GUARD_SECURITY_CONFIG = SecurityConfig(
     enable_cors=True,
-    cors_allow_headers=[
-        "Authorization",
-        "Content-Type",
-        "X-Custom-Header"
-    ],
-    cors_expose_headers=[
-        "X-Custom-Response-Header"
-    ]
+    cors_allow_headers=["Authorization", "Content-Type", "X-Custom-Header"],
+    cors_expose_headers=["X-Custom-Response-Header"],
 )
 ```

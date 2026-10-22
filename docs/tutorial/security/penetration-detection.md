@@ -43,10 +43,13 @@ Custom Detection Logic
 from guard_core.sync.utils import detect_penetration_attempt
 from django.http import JsonResponse
 
+
 def submit_data(request):
     is_suspicious, trigger_info = detect_penetration_attempt(request)
     if is_suspicious:
-        return JsonResponse({"error": f"Suspicious activity detected: {trigger_info}"}, status=400)
+        return JsonResponse(
+            {"error": f"Suspicious activity detected: {trigger_info}"}, status=400
+        )
     return JsonResponse({"status": "success"})
 ```
 

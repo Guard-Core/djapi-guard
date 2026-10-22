@@ -16,10 +16,21 @@ Logging Functions
 -----------------
 
 ```python
-def setup_custom_logging(log_file: str | None = None, log_format: str = "text") -> logging.Logger:
+def setup_custom_logging(
+    log_file: str | None = None, log_format: str = "text"
+) -> logging.Logger:
     """Setup custom logging for DjangoAPI Guard."""
 
-def log_activity(request, logger, log_type="request", reason="", passive_mode=False, trigger_info="", level="WARNING"):
+
+def log_activity(
+    request,
+    logger,
+    log_type="request",
+    reason="",
+    passive_mode=False,
+    trigger_info="",
+    level="WARNING",
+):
     """Universal logging function for all types of requests and activities."""
 ```
 
@@ -32,8 +43,10 @@ Security Check Functions
 def is_user_agent_allowed(user_agent: str, config: SecurityConfig) -> bool:
     """Check if user agent is allowed."""
 
+
 def is_ip_allowed(ip: str, config: SecurityConfig, ipinfo_db=None) -> bool:
     """Check if IP address is allowed."""
+
 
 def detect_penetration_attempt(
     request: HttpRequest,
@@ -42,7 +55,10 @@ def detect_penetration_attempt(
 ) -> DetectionResult:
     """Detect potential penetration attempts using the Detection Engine."""
 
-def extract_client_ip(request: HttpRequest, config: SecurityConfig, agent_handler=None) -> str:
+
+def extract_client_ip(
+    request: HttpRequest, config: SecurityConfig, agent_handler=None
+) -> str:
     """Securely extract the client IP address from the request."""
 ```
 

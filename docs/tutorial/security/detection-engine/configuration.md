@@ -40,7 +40,7 @@ GUARD_SECURITY_CONFIG = SecurityConfig(
     detection_compiler_timeout=5.0,
     detection_max_content_length=50000,
     detection_monitor_history_size=5000,
-    custom_log_file="security-debug.log"
+    custom_log_file="security-debug.log",
 )
 ```
 

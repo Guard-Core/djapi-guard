@@ -21,6 +21,7 @@ from django.http import JsonResponse
 
 guard_deco = SecurityDecorator(config)
 
+
 @guard_deco.content_type_filter(["application/json"])
 def json_only_endpoint(request):
     return JsonResponse({"message": "JSON only"})
@@ -43,11 +44,13 @@ User Agent Blocking
 -------------------
 
 ```python
-@guard_deco.block_user_agents([
-    r".*bot.*",
-    r".*crawler.*",
-    r".*spider.*",
-])
+@guard_deco.block_user_agents(
+    [
+        r".*bot.*",
+        r".*crawler.*",
+        r".*spider.*",
+    ]
+)
 def human_only_endpoint(request):
     return JsonResponse({"message": "Human users only"})
 ```
@@ -71,6 +74,7 @@ Custom Validation
 ```python
 from django.http import HttpResponse
 
+
 def validate_api_version(req) -> HttpResponse | None:
     version = req.META.get("HTTP_API_VERSION")
     if not version:
@@ -78,6 +82,7 @@ def validate_api_version(req) -> HttpResponse | None:
     if version not in ["1.0", "2.0", "2.1"]:
         return HttpResponse("Unsupported API version", status=400)
     return None
+
 
 @guard_deco.custom_validation(validate_api_version)
 def versioned_endpoint(request):

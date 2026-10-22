@@ -16,16 +16,25 @@ Key Methods
 -----------
 
 ```python
-def initialize(self): """Initialize Redis connection with retry logic"""
+def initialize(self):
+    """Initialize Redis connection with retry logic"""
+
 
 @contextmanager
-def get_connection(self): """Context manager for safe Redis operations"""
+def get_connection(self):
+    """Context manager for safe Redis operations"""
 
-def get_key(self, namespace: str, key: str) -> Any: """Get namespaced key with prefix"""
 
-def set_key(self, namespace: str, key: str, value: Any, ttl: int | None = None) -> bool: """Set namespaced key with optional TTL"""
+def get_key(self, namespace: str, key: str) -> Any:
+    """Get namespaced key with prefix"""
 
-def incr(self, namespace: str, key: str, ttl: int | None = None) -> int: """Atomic increment with expiration"""
+
+def set_key(self, namespace: str, key: str, value: Any, ttl: int | None = None) -> bool:
+    """Set namespaced key with optional TTL"""
+
+
+def incr(self, namespace: str, key: str, ttl: int | None = None) -> int:
+    """Atomic increment with expiration"""
 ```
 
 ___

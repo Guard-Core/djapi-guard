@@ -50,11 +50,7 @@ HTTP Strict Transport Security (HSTS)
 ```python
 GUARD_SECURITY_CONFIG = SecurityConfig(
     security_headers={
-        "hsts": {
-            "max_age": 31536000,
-            "include_subdomains": True,
-            "preload": False
-        }
+        "hsts": {"max_age": 31536000, "include_subdomains": True, "preload": False}
     }
 )
 ```

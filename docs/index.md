@@ -88,6 +88,7 @@ MIDDLEWARE = [
 # views.py
 from django.http import JsonResponse
 
+
 def hello(request):
     return JsonResponse({"message": "Hello, World!"})
 ```
@@ -278,25 +279,33 @@ from djangoapi_guard import SecurityDecorator, SecurityConfig
 config = SecurityConfig(rate_limit=100, rate_limit_window=60)
 security = SecurityDecorator(config)
 
+
 @security.rate_limit(requests=5, window=60)
 def rate_limited(request):
-    return JsonResponse({"message": "This endpoint is rate limited", "limit": "5/minute"})
+    return JsonResponse(
+        {"message": "This endpoint is rate limited", "limit": "5/minute"}
+    )
+
 
 @security.require_auth(type="bearer")
 def protected(request):
     return JsonResponse({"message": "Authenticated!"})
 
+
 @security.content_type_filter(["application/json"])
 def json_only(request):
     return JsonResponse({"message": "JSON accepted"})
+
 
 @security.time_window("09:00", "17:00", "UTC")
 def business_hours(request):
     return JsonResponse({"message": "Available during business hours only"})
 
+
 @security.require_ip(whitelist=["127.0.0.1", "::1", "10.0.0.0/8"])
 def local_only(request):
     return JsonResponse({"message": "Local access granted"})
+
 
 @security.bypass(["all"])
 def unprotected(request):
@@ -349,27 +358,21 @@ GUARD_SECURITY_CONFIG = SecurityConfig(
     # Rate limiting
     rate_limit=100,
     rate_limit_window=60,
-
     # IP management
     whitelist=["127.0.0.1", "::1"],
     blacklist=[],
-
     # Auto-banning
     auto_ban_threshold=10,
     auto_ban_duration=3600,
-
     # Redis
     enable_redis=True,
     redis_url="redis://localhost:6379",
     redis_prefix="djangoapi_guard:",
-
     # Penetration detection
     enable_penetration_detection=True,
-
     # CORS
     enable_cors=True,
     cors_allow_origins=["https://example.com"],
-
     # Security headers
     security_headers={
         "enabled": True,
@@ -378,13 +381,10 @@ GUARD_SECURITY_CONFIG = SecurityConfig(
         "frame_options": "DENY",
         "content_type_options": "nosniff",
     },
-
     # Custom request check (sync)
     custom_request_check=lambda request: None,
-
     # Custom response modifier (sync)
     custom_response_modifier=lambda response: response,
-
     # Path exclusions
     exclude_paths=["/health", "/static", "/favicon.ico"],
 )

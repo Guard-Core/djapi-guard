@@ -44,7 +44,7 @@ GUARD_SECURITY_CONFIG = SecurityConfig(
     # Log normal requests as INFO (or set to None to disable)
     log_request_level="INFO",
     # Log suspicious activity as WARNING
-    log_suspicious_level="WARNING"
+    log_suspicious_level="WARNING",
 )
 ```
 
@@ -66,8 +66,7 @@ DjangoAPI Guard supports structured JSON log output for integration with log agg
 
 ```python
 GUARD_SECURITY_CONFIG = SecurityConfig(
-    log_format="json",
-    custom_log_file="security.log"
+    log_format="json", custom_log_file="security.log"
 )
 ```
 
@@ -96,7 +95,7 @@ GUARD_SECURITY_CONFIG = SecurityConfig(
     # Disable normal request logging (default)
     log_request_level=None,
     # Keep security event logging enabled
-    log_suspicious_level="WARNING"
+    log_suspicious_level="WARNING",
 )
 ```
 
@@ -164,13 +163,10 @@ from djangoapi_guard import SecurityConfig
 GUARD_SECURITY_CONFIG = SecurityConfig(
     # File + console logging for audit trail
     custom_log_file="/var/log/djapi-guard/security.log",
-
     # Disable normal request logging to reduce noise
     log_request_level=None,
-
     # Keep security events at WARNING level
     log_suspicious_level="WARNING",
-
     # Other security settings...
     enable_redis=True,
     enable_penetration_detection=True,
@@ -187,11 +183,9 @@ from djangoapi_guard import SecurityConfig
 GUARD_SECURITY_CONFIG = SecurityConfig(
     # Console-only output for development
     custom_log_file=None,  # No file logging
-
     # Enable all logging for debugging
     log_request_level="INFO",
     log_suspicious_level="WARNING",
-
     # Other settings...
     passive_mode=True,  # Log-only mode for testing
 )

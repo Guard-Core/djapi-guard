@@ -7,7 +7,7 @@ from djangoapi_guard import sus_patterns_handler
 
 stats = sus_patterns_handler.get_performance_stats()
 print(f"Average execution time: {stats['summary']['average_time']}s")
-print(f"Timeout rate: {stats['summary']['timeout_rate']*100}%")
+print(f"Timeout rate: {stats['summary']['timeout_rate'] * 100}%")
 print(f"Slow patterns: {len(stats['slow_patterns'])}")
 ```
 

@@ -21,6 +21,7 @@ from django.http import JsonResponse
 
 guard_deco = SecurityDecorator(config)
 
+
 @guard_deco.rate_limit(requests=10, window=300)  # 10 requests per 5 minutes
 def limited_endpoint(request):
     return JsonResponse({"data": "rate limited"})
@@ -32,11 +33,12 @@ Endpoint-Specific Rate Limits
 -------------------
 
 ```python
-@guard_deco.rate_limit(requests=5, window=300)     # 5 attempts per 5 minutes
+@guard_deco.rate_limit(requests=5, window=300)  # 5 attempts per 5 minutes
 def login(request):
     return JsonResponse({"token": "jwt_token"})
 
-@guard_deco.rate_limit(requests=3, window=3600)    # 3 registrations per hour
+
+@guard_deco.rate_limit(requests=3, window=3600)  # 3 registrations per hour
 def register(request):
     return JsonResponse({"status": "user created"})
 ```
@@ -47,12 +49,14 @@ Geographic Rate Limiting
 -------------------------
 
 ```python
-@guard_deco.geo_rate_limit({
-    "US": (100, 3600),    # 100 requests/hour for US
-    "CA": (100, 3600),    # 100 requests/hour for Canada
-    "CN": (10, 3600),     # 10 requests/hour for China
-    "*": (50, 3600)       # 50 requests/hour for others
-})
+@guard_deco.geo_rate_limit(
+    {
+        "US": (100, 3600),  # 100 requests/hour for US
+        "CA": (100, 3600),  # 100 requests/hour for Canada
+        "CN": (10, 3600),  # 10 requests/hour for China
+        "*": (50, 3600),  # 50 requests/hour for others
+    }
+)
 def geo_limited_content(request):
     return JsonResponse({"data": "geographic rate limited"})
 ```
@@ -63,8 +67,8 @@ Combining with Other Decorators
 -------------------------------
 
 ```python
-@guard_deco.require_ip(whitelist=["10.0.0.0/8"])     # Internal network only
-@guard_deco.rate_limit(requests=20, window=3600)     # 20 actions per hour
+@guard_deco.require_ip(whitelist=["10.0.0.0/8"])  # Internal network only
+@guard_deco.rate_limit(requests=20, window=3600)  # 20 actions per hour
 def admin_action(request):
     return JsonResponse({"status": "admin action completed"})
 ```

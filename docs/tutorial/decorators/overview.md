@@ -25,8 +25,10 @@ from django.http import JsonResponse
 config = SecurityConfig()
 guard_deco = SecurityDecorator(config)
 
+
 def public_endpoint(request):
     return JsonResponse({"message": "This uses global security settings"})
+
 
 @guard_deco.rate_limit(requests=5, window=300)
 @guard_deco.require_ip(whitelist=["10.0.0.0/8"])
@@ -144,7 +146,7 @@ config = SecurityConfig(
     enable_ip_banning=True,
     enable_rate_limiting=True,
     rate_limit=100,
-    rate_limit_window=3600
+    rate_limit_window=3600,
 )
 
 # Create decorator instance
@@ -157,12 +159,14 @@ guard_deco = SecurityDecorator(config)
 ```python
 from django.http import JsonResponse
 
+
 @guard_deco.require_https()
-@guard_deco.rate_limit(requests=5, window=300)    # Stricter limit for login
+@guard_deco.rate_limit(requests=5, window=300)  # Stricter limit for login
 @guard_deco.suspicious_detection(enabled=True)
 def login(request):
     # Login logic here
     return JsonResponse({"token": "jwt_token"})
+
 
 @guard_deco.require_ip(whitelist=["10.0.0.0/8"])  # Internal network only
 @guard_deco.require_auth(type="bearer")
@@ -193,11 +197,11 @@ Best Practices
 Apply decorators from most specific to most general:
 
 ```python
-@guard_deco.require_https()                         # Security requirement
-@guard_deco.require_auth(type="bearer")             # Authentication
-@guard_deco.require_ip(whitelist=["10.0.0.0/8"])    # Access control
-@guard_deco.rate_limit(requests=5, window=3600)     # Rate limiting
-@guard_deco.suspicious_detection(enabled=True)      # Monitoring
+@guard_deco.require_https()  # Security requirement
+@guard_deco.require_auth(type="bearer")  # Authentication
+@guard_deco.require_ip(whitelist=["10.0.0.0/8"])  # Access control
+@guard_deco.rate_limit(requests=5, window=3600)  # Rate limiting
+@guard_deco.suspicious_detection(enabled=True)  # Monitoring
 def admin_endpoint(request):
     return JsonResponse({"status": "admin action"})
 ```

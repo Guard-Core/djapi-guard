@@ -21,6 +21,7 @@ from django.http import JsonResponse
 
 guard_deco = SecurityDecorator(config)
 
+
 @guard_deco.usage_monitor(max_calls=10, window=3600, action="ban")
 def sensitive_endpoint(request):
     return JsonResponse({"data": "sensitive information"})
@@ -35,6 +36,7 @@ Return Pattern Monitoring
 @guard_deco.return_monitor("win", max_occurrences=2, window=86400, action="ban")
 def lottery_endpoint(request):
     import random
+
     result = random.choice(["win", "lose", "lose", "lose"])
     return JsonResponse({"result": result})
 ```
@@ -66,9 +68,12 @@ from djangoapi_guard import BehaviorRule
 
 rules = [
     BehaviorRule("usage", threshold=20, window=3600, action="alert"),
-    BehaviorRule("return_pattern", threshold=5, pattern="win", window=86400, action="ban"),
-    BehaviorRule("frequency", threshold=60, window=300, action="throttle")
+    BehaviorRule(
+        "return_pattern", threshold=5, pattern="win", window=86400, action="ban"
+    ),
+    BehaviorRule("frequency", threshold=60, window=300, action="throttle"),
 ]
+
 
 @guard_deco.behavior_analysis(rules)
 def casino_game(request):

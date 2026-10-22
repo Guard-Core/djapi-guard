@@ -35,6 +35,7 @@ You can also manually ban IPs using the `IPBanManager`:
 from djangoapi_guard import ip_ban_manager
 from django.http import JsonResponse
 
+
 def ban_ip(request, ip):
     duration = int(request.GET.get("duration", 3600))
     ip_ban_manager.ban_ip(ip, duration)

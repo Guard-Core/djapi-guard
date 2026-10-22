@@ -42,9 +42,7 @@ Single Reverse Proxy:
 
 ```python
 GUARD_SECURITY_CONFIG = SecurityConfig(
-    trusted_proxies=["10.0.0.1"],
-    trusted_proxy_depth=1,
-    trust_x_forwarded_proto=True
+    trusted_proxies=["10.0.0.1"], trusted_proxy_depth=1, trust_x_forwarded_proto=True
 )
 ```
 
@@ -54,7 +52,7 @@ Load Balancer + Proxy:
 GUARD_SECURITY_CONFIG = SecurityConfig(
     trusted_proxies=["10.0.0.1", "192.168.1.0/24"],
     trusted_proxy_depth=2,
-    trust_x_forwarded_proto=True
+    trust_x_forwarded_proto=True,
 )
 ```
 

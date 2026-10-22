@@ -1,5 +1,5 @@
 import os
-from collections.abc import Iterator
+from collections.abc import Generator, Iterator
 from typing import Any
 
 import pytest
@@ -11,8 +11,45 @@ from guard_core.sync.handlers.security_headers_handler import security_headers_m
 from guard_core.sync.handlers.suspatterns_handler import sus_patterns_handler
 
 import djangoapi_guard._decorator_adoption as decorator_adoption
+from tests.redis_isolation import (
+    REDIS_PREFIX,
+    REDIS_URL,
+    delete_every_key_under_the_suite_prefix,
+    point_security_config_defaults_at_the_test_redis,
+    refuse_connections_to_the_default_redis_port,
+    refused_connections,
+)
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.settings")
+
+point_security_config_defaults_at_the_test_redis()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _refuse_the_default_redis_port() -> Generator[None, None, None]:
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        refuse_connections_to_the_default_redis_port(monkeypatch)
+        yield
+
+
+@pytest.fixture(autouse=True)
+def refused_redis_connections() -> Generator[list[tuple[Any, ...]], None, None]:
+    refused_connections.clear()
+    yield refused_connections
+    attempts = list(refused_connections)
+    refused_connections.clear()
+    assert not attempts, f"the test connected to port 6379: {attempts}"
+
+
+@pytest.fixture(autouse=True)
+def redis_cleanup() -> None:
+    delete_every_key_under_the_suite_prefix()
+
+
+def pytest_terminal_summary(terminalreporter: pytest.TerminalReporter) -> None:
+    terminalreporter.write_line(
+        f"redis isolation: REDIS_URL={REDIS_URL} REDIS_PREFIX={REDIS_PREFIX}"
+    )
 
 
 @pytest.fixture

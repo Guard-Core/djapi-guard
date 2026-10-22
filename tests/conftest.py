@@ -10,6 +10,8 @@ from guard_core.sync.handlers.ratelimit_handler import RateLimitManager
 from guard_core.sync.handlers.security_headers_handler import security_headers_manager
 from guard_core.sync.handlers.suspatterns_handler import sus_patterns_handler
 
+import djangoapi_guard._decorator_adoption as decorator_adoption
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.settings")
 
 
@@ -54,6 +56,11 @@ def make_request(request_factory: RequestFactory) -> Any:
         return request
 
     return _make_request
+
+
+@pytest.fixture(autouse=True)
+def forget_registered_decorators() -> None:
+    decorator_adoption._created.clear()
 
 
 @pytest.fixture(autouse=True)

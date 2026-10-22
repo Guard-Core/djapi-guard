@@ -67,7 +67,7 @@ Decorators from `guard_core.sync.decorators` write per-route `RouteConfig` objec
 * **`GUARD_SECURITY_CONFIG` must be a `SecurityConfig` instance.** A plain dict from older docs is not converted by the middleware; construct `SecurityConfig(**settings_dict)` in settings if you keep a dict around.
 * **`enable_redis` defaults to `True`** with `redis_url="redis://localhost:6379"`. Without a reachable Redis, stateful checks fail; set `enable_redis=False` in no-Redis environments or point at a real instance.
 * **Async callables are rejected.** Any `async def` custom check, validator, or modifier raises `TypeError`; convert to a sync function.
-* **Decorator-only checks need exactly one adoptable decorator.** With several `SecurityDecorator` instances and no `settings.GUARD_DECORATOR`, none is adopted, decorator-triggered checks do not fire and one warning per process names the setting. A decorator built from `guard_core.sync.decorators` directly is not registered either; import `SecurityDecorator` from `djangoapi_guard` or set `GUARD_DECORATOR`.
+* **Decorator-only checks need exactly one adoptable decorator.** With several `SecurityDecorator` instances and no `settings.GUARD_DECORATOR`, the first request raises `ImproperlyConfigured` naming the setting. A decorator built from `guard_core.sync.decorators` directly is not registered either; import `SecurityDecorator` from `djangoapi_guard` or set `GUARD_DECORATOR`.
 * **`passive_mode=True` logs but never blocks.** Use it to trial rules; switch to `False` once logs confirm the traffic you expect.
 * **Tests need Django settings.** The suite uses pytest-django with `DJANGO_SETTINGS_MODULE = "tests.settings"` from pyproject; new test modules should not call `django.setup()` themselves.
 

@@ -66,14 +66,13 @@ def test_setting_dotted_path_picks_among_two_decorators() -> None:
         assert _statuses(client) == [200, 429, 429]
 
 
-def test_two_decorators_without_setting_adopt_none_and_warn_once(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    with caplog.at_level(logging.WARNING):
-        with _served("tests.two_decorators_urls") as client:
-            assert _statuses(client) == [200, 200, 200]
-    named = [r for r in caplog.records if "GUARD_DECORATOR" in r.getMessage()]
-    assert len(named) == 1
+def test_two_decorators_without_setting_raise_improperly_configured() -> None:
+    with _served("tests.two_decorators_urls") as client:
+        with pytest.raises(ImproperlyConfigured) as raised:
+            client.get("/limited")
+    message = str(raised.value)
+    assert "GUARD_DECORATOR" in message
+    assert message.count("_decorator_adoption.SecurityDecorator at") == 2
 
 
 def test_decorator_outside_the_registry_warns_once_naming_the_fix(

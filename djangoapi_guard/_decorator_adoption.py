@@ -46,4 +46,15 @@ def resolve_decorator() -> BaseSecurityDecorator | None:
         return configured
     list(get_resolver().url_patterns)
     alive = _alive_decorators()
-    return alive[0] if len(alive) == 1 else None
+    if len(alive) > 1:
+        names = ", ".join(
+            f"{type(decorator).__module__}.{type(decorator).__qualname__} "
+            f"at {hex(id(decorator))}"
+            for decorator in alive
+        )
+        raise ImproperlyConfigured(
+            f"{len(alive)} SecurityDecorator instances are registered ({names}) "
+            "and settings.GUARD_DECORATOR does not say which one to use. Set "
+            "settings.GUARD_DECORATOR to the decorator or its dotted path."
+        )
+    return alive[0] if alive else None

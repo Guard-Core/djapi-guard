@@ -6,7 +6,7 @@ ___
 Unreleased
 ----------
 
-- **Fixed** - **Route decorators now work as the README shows.** `DjangoAPIGuard` started with no decorator and Django builds the middleware, so a view decorated with `SecurityDecorator` had every decorator-only check (route rate limits, IP and country rules, size and content-type limits, behavior rules) silently off unless code reached the middleware instance. The middleware now adopts the `djangoapi_guard.SecurityDecorator` the project built on its first request. Projects with several decorators name one in `settings.GUARD_DECORATOR` (instance or dotted path). With several and no setting, or with a decorator that was not built through `djangoapi_guard`, one warning per process names the fix. `set_decorator_handler` is unchanged.
+- **Fixed** - **Route decorators now work as the README shows.** `DjangoAPIGuard` started with no decorator and Django builds the middleware, so a view decorated with `SecurityDecorator` had every decorator-only check (route rate limits, IP and country rules, size and content-type limits, behavior rules) silently off unless code reached the middleware instance. The middleware now adopts the `djangoapi_guard.SecurityDecorator` the project built on its first request. Projects with several decorators name one in `settings.GUARD_DECORATOR` (instance or dotted path). With several and no setting, the first request raises `ImproperlyConfigured` naming `GUARD_DECORATOR` and the registered decorators. With a decorator that was not built through `djangoapi_guard`, one warning per process names the fix. `set_decorator_handler` is unchanged.
 
 ___
 

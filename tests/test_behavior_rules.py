@@ -151,3 +151,25 @@ def test_requests_without_rules_skip_the_usage_call(
     monkeypatch.setattr(guard.behavioral_processor, "process_usage_rules", usage)
     assert guard._process_behavioral_usage(Mock(), client_ip, None) is None
     usage.assert_not_called()
+
+
+def test_usage_call_refusal_is_answered_with_cors_headers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from djangoapi_guard.adapters import DjangoGuardResponse
+
+    guard = _guard(
+        _config(enable_cors=True, cors_allow_origins=["https://example.com"])
+    )
+    refusal = DjangoGuardResponse(HttpResponse("slow down", status=429))
+    usage = Mock(return_value=refusal)
+    monkeypatch.setattr(guard.behavioral_processor, "process_usage_rules", usage)
+    request = RequestFactory().get("/limited/", HTTP_ORIGIN="https://example.com")
+    request.META["REMOTE_ADDR"] = f"198.51.100.{next(_IPS)}"
+
+    response = guard(request)
+
+    assert response.status_code == 429
+    assert response.content == b"slow down"
+    assert response["Access-Control-Allow-Origin"] == "https://example.com"
+    usage.assert_called_once()

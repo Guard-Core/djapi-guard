@@ -25,7 +25,9 @@ def _urlconf_and_clean_limits() -> Iterator[None]:
     rate_limit_handler(SecurityConfig(enable_redis=False, enable_agent=False)).reset()
 
 
-def _middleware(limits: dict[str, tuple[int, int]]) -> DjangoAPIGuard:
+def _middleware(
+    limits: dict[str, tuple[int, int]], **config_options: Any
+) -> DjangoAPIGuard:
     import django.conf
 
     django.conf.settings.GUARD_SECURITY_CONFIG = SecurityConfig(
@@ -36,6 +38,7 @@ def _middleware(limits: dict[str, tuple[int, int]]) -> DjangoAPIGuard:
         rate_limit=1000,
         endpoint_rate_limits=limits,
         passive_mode=False,
+        **config_options,
     )
     return DjangoAPIGuard(lambda request: HttpResponse("OK"))
 
@@ -83,9 +86,14 @@ def test_login_and_login_slash_keys_are_both_enforced() -> None:
 
 
 def test_key_the_router_cannot_resolve_still_limits_through_the_fallback() -> None:
-    middleware = _middleware({"/login/.": (1, 60)})
+    middleware = _middleware({"/login/.": (1, 60)}, fail_on_misconfiguration=False)
 
     assert _statuses(middleware, ["/login", "/login"]) == [200, 429]
+
+
+def test_key_the_router_cannot_resolve_refuses_to_start_by_default() -> None:
+    with pytest.raises(ValueError, match="has a dot segment"):
+        _middleware({"/login/.": (1, 60)})
 
 
 def test_resolve_route_reports_the_view_and_its_path_parameters() -> None:

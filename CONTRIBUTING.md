@@ -106,6 +106,8 @@ The documentation for DjangoAPI Guard is built with MkDocs. To build and view th
 make serve-docs
 ```
 
+Docs build only on Python 3.14 (`make serve-docs` and the docs workflow use it): on 3.10 the newest mkdocstrings (1.0.6) fails with pymdown-extensions 12 with `TypeError: Highlight.__init__() missing 1 required positional argument: 'md'`.
+
 Please update the documentation when making significant changes.
 
 ___

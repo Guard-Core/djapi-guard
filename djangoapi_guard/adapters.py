@@ -3,7 +3,7 @@ from collections.abc import Iterator, Mapping, MutableMapping
 from contextlib import contextmanager
 from typing import Any, cast
 
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
 from django.http.response import HttpResponseBase
 from guard_core.exceptions import BodyReadStalledError
 
@@ -186,9 +186,50 @@ class DjangoHeadersMapping(Mapping[str, str]):
         return key.title() in self._headers
 
 
+class _TeedStreamingContent:
+    def __init__(self, source: Iterator[bytes]) -> None:
+        self._source = source
+        self.head: list[bytes] = []
+
+    def read_until(self, wanted: int) -> None:
+        received = sum(map(len, self.head))
+        if received >= wanted:
+            return
+        for chunk in self._source:
+            self.head.append(chunk)
+            received += len(chunk)
+            if received >= wanted:
+                return
+
+    def __iter__(self) -> Iterator[bytes]:
+        while self.head:
+            yield self.head.pop(0)
+        yield from self._source
+
+
+def _tee_streaming_content(native: HttpResponseBase) -> _TeedStreamingContent | None:
+    if not isinstance(native, StreamingHttpResponse):
+        return None
+    content = native.streaming_content
+    # an async stream is never consumed here: the sync tee cannot read it
+    if not isinstance(content, Iterator):
+        return None
+    tee = _TeedStreamingContent(content)
+    native.streaming_content = tee
+    return tee
+
+
 class DjangoGuardResponse:
+    body_is_materialized: bool
+
     def __init__(self, response: HttpResponseBase) -> None:
         self._response = response
+        self._tee: _TeedStreamingContent | None = None
+        # a streaming response (StreamingHttpResponse, FileResponse) never holds
+        # its body, and a response class outside HttpResponse is not assumed to
+        self.body_is_materialized = (
+            isinstance(response, HttpResponse) and not response.streaming
+        )
 
     @property
     def status_code(self) -> int:
@@ -208,10 +249,22 @@ class DjangoGuardResponse:
     def read_body_prefix(self, max_bytes: int) -> bytes:
         if max_bytes <= 0:
             return b""
-        content = self.body
-        if content is None:
+        native = self._response
+        if isinstance(native, HttpResponse):
+            return native.content[:max_bytes]
+        if self._tee is None:
+            self._tee = _tee_streaming_content(native)
+        if self._tee is None:
             return b""
-        return content[:max_bytes]
+        # a declared length within the cap is read to its end; any other stream
+        # stops at the first chunk, so an endless stream never stalls the scan
+        declared = native.get("Content-Length", "")
+        self._tee.read_until(
+            int(declared)
+            if declared.isascii() and declared.isdigit() and int(declared) <= max_bytes
+            else 1
+        )
+        return b"".join(self._tee.head)[:max_bytes]
 
 
 class DjangoResponseFactory:

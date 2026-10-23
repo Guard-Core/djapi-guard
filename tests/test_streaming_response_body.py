@@ -1,4 +1,4 @@
-"""A streamed Django response behind the middleware (LEDGER 6.114).
+"""A streamed Django response behind the middleware (LEDGER 6.114, 5.42).
 
 Probe at djapi-guard e2a1593 with guard-core efa0ffde: a custom_response_modifier
 that read `.body` on a StreamingHttpResponse hit an AttributeError from
@@ -59,21 +59,24 @@ def test_body_of_a_streamed_response_is_none_not_an_exception() -> None:
     streamed = DjangoGuardResponse(StreamingHttpResponse(iter([BODY])))
 
     assert streamed.body is None
-    assert streamed.read_body_prefix(10) == b""
+    assert streamed.read_body_prefix(10) == BODY[:10]
 
 
 def test_body_of_a_plain_response_is_its_bytes() -> None:
     assert DjangoGuardResponse(HttpResponse(BODY)).body == BODY
 
 
-def test_modifier_reading_the_body_of_a_streamed_response_raises_nothing(
+def test_modifier_reading_the_body_of_a_streamed_response_is_refused_not_dropped(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    seen: list[bytes | None] = []
+    refusals: list[Exception] = []
 
     def modifier(response: GuardResponse) -> GuardResponse:
         response.headers["X-Before"] = "1"
-        seen.append(response.body)
+        try:
+            _ = response.body
+        except AttributeError as error:
+            refusals.append(error)
         response.headers["X-After"] = "1"
         return response
 
@@ -83,10 +86,13 @@ def test_modifier_reading_the_body_of_a_streamed_response_raises_nothing(
 
     assert response.streaming
     assert response.status_code == 200
-    assert seen == [None]
+    assert [type(error).__name__ for error in refusals] == [
+        "ResponseBodyUnavailableError"
+    ]
     assert response.headers["X-Before"] == "1"
     assert response.headers["X-After"] == "1"
-    assert not [r for r in caplog.records if "custom_response_modifier" in r.message]
+    assert isinstance(response, StreamingHttpResponse)
+    assert response.getvalue() == BODY
 
 
 def test_modifier_reading_the_body_of_a_plain_response_sees_its_bytes() -> None:
@@ -101,7 +107,7 @@ def test_modifier_reading_the_body_of_a_plain_response_sees_its_bytes() -> None:
     assert seen == [BODY]
 
 
-def test_return_rule_verdict_of_a_streamed_response_is_the_empty_body_verdict(
+def test_return_rule_verdict_of_a_streamed_response_reads_its_first_chunk(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     rule = {
@@ -121,6 +127,6 @@ def test_return_rule_verdict_of_a_streamed_response_is_the_empty_body_verdict(
 
     with caplog.at_level(logging.WARNING):
         assert codes("plain", "203.0.113.20") == [200, 200, 200, 403, 403]
-        streamed = codes("streamed", "203.0.113.21")
-        assert streamed == codes("empty", "203.0.113.22") == [200] * 5
+        assert codes("streamed", "203.0.113.21") == [200, 200, 200, 403, 403]
+        assert codes("empty", "203.0.113.22") == [200] * 5
     assert not [r for r in caplog.records if r.levelno >= logging.ERROR]

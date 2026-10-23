@@ -108,7 +108,9 @@ def test_django_guard_response_read_body_prefix_full() -> None:
     assert guard_response.read_body_prefix(100) == b"abc"
 
 
-def test_django_guard_response_read_body_prefix_streaming() -> None:
+def test_django_guard_response_read_body_prefix_streaming_tees_the_first_chunk() -> (
+    None
+):
     from django.http import StreamingHttpResponse
 
     def gen() -> Any:
@@ -116,7 +118,8 @@ def test_django_guard_response_read_body_prefix_streaming() -> None:
 
     response = StreamingHttpResponse(gen(), status=200)
     guard_response = DjangoGuardResponse(response)
-    assert guard_response.read_body_prefix(10) == b""
+    assert guard_response.read_body_prefix(10) == b"chunk"
+    assert response.getvalue() == b"chunk"
 
 
 def test_django_headers_mapping() -> None:

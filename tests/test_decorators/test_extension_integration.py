@@ -6,7 +6,6 @@ import django
 
 django.setup()
 
-from collections.abc import Awaitable, Callable
 from typing import Any, cast
 from unittest.mock import MagicMock, Mock, patch
 
@@ -462,9 +461,7 @@ def test_bypass_all_security_checks_with_custom_modifier() -> None:
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
-        custom_response_modifier=cast(
-            Callable[[GuardResponse], Awaitable[GuardResponse]], custom_modifier
-        ),
+        custom_response_modifier=custom_modifier,
     )
 
     decorator = SecurityDecorator(config)

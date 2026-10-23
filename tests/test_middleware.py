@@ -1,7 +1,7 @@
 import logging
 import sys
 import time
-from collections.abc import Awaitable, Callable, Iterator
+from collections.abc import Iterator
 from typing import Any, cast
 from unittest.mock import MagicMock, Mock, patch
 
@@ -10,7 +10,6 @@ from django.http import HttpRequest, HttpResponse
 from django.test import RequestFactory
 from guard_core.exceptions import GuardRedisError
 from guard_core.models import SecurityConfig
-from guard_core.protocols.request_protocol import GuardRequest
 from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync.decorators.base import BaseSecurityDecorator
 from guard_core.sync.detection_result import DetectionResult
@@ -451,9 +450,7 @@ class TestDjangoAPIGuard:
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
-            custom_request_check=cast(
-                Callable[[GuardRequest], Awaitable[GuardResponse | None]], custom_check
-            ),
+            custom_request_check=custom_check,
         )
         middleware = self._make_middleware(config)
         factory = RequestFactory()
@@ -479,9 +476,7 @@ class TestDjangoAPIGuard:
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
-            custom_response_modifier=cast(
-                Callable[[GuardResponse], Awaitable[GuardResponse]], custom_modifier
-            ),
+            custom_response_modifier=custom_modifier,
         )
         middleware = self._make_middleware(config)
         factory = RequestFactory()
@@ -502,9 +497,7 @@ class TestDjangoAPIGuard:
             enable_agent=False,
             enable_penetration_detection=False,
             blacklist=("192.168.1.5",),
-            custom_response_modifier=cast(
-                Callable[[GuardResponse], Awaitable[GuardResponse]], custom_modifier
-            ),
+            custom_response_modifier=custom_modifier,
             trusted_proxies=("127.0.0.1",),
         )
         middleware = self._make_middleware(config)
@@ -538,12 +531,8 @@ class TestDjangoAPIGuard:
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
-            custom_response_modifier=cast(
-                Callable[[GuardResponse], Awaitable[GuardResponse]], custom_modifier
-            ),
-            custom_request_check=cast(
-                Callable[[GuardRequest], Awaitable[GuardResponse | None]], custom_check
-            ),
+            custom_response_modifier=custom_modifier,
+            custom_request_check=custom_check,
         )
         middleware = self._make_middleware(config)
         factory = RequestFactory()

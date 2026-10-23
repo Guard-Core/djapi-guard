@@ -1,6 +1,5 @@
 import os
-from collections.abc import Awaitable, Callable, Generator
-from typing import cast
+from collections.abc import Generator
 from unittest.mock import MagicMock, patch
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.settings")
@@ -13,7 +12,6 @@ import pytest
 from django.http import HttpRequest, HttpResponse
 from django.test import RequestFactory
 from guard_core.models import SecurityConfig
-from guard_core.protocols.request_protocol import GuardRequest
 from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync.handlers.cloud_handler import cloud_handler
 from guard_core.sync.handlers.ipban_handler import ip_ban_manager
@@ -356,9 +354,7 @@ def test_guard_with_custom_check() -> None:
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
-        custom_request_check=cast(
-            Callable[[GuardRequest], Awaitable[GuardResponse | None]], custom_check
-        ),
+        custom_request_check=custom_check,
     )
     middleware = _make_middleware(config)
     factory = RequestFactory()
@@ -378,9 +374,7 @@ def test_guard_with_custom_response_modifier() -> None:
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
-        custom_response_modifier=cast(
-            Callable[[GuardResponse], Awaitable[GuardResponse]], custom_modifier
-        ),
+        custom_response_modifier=custom_modifier,
     )
     middleware = _make_middleware(config)
     factory = RequestFactory()

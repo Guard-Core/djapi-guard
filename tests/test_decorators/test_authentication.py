@@ -1,5 +1,7 @@
 import os
 
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.settings")
 
 import django
@@ -22,8 +24,8 @@ from tests import api_key_urls
 
 
 @pytest.fixture
-def security_config() -> SecurityConfig:
-    return SecurityConfig(
+def security_config() -> SecurityConfig[SyncGuardRequest]:
+    return SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         trusted_proxies=("127.0.0.1",),
@@ -34,7 +36,7 @@ def security_config() -> SecurityConfig:
 
 
 @pytest.fixture
-def decorator(security_config: SecurityConfig) -> SecurityDecorator:
+def decorator(security_config: SecurityConfig[SyncGuardRequest]) -> SecurityDecorator:
     return SecurityDecorator(security_config)
 
 
@@ -137,7 +139,9 @@ def test_header_requirements_applied(
         )
 
 
-def test_authentication_decorators_unit(security_config: SecurityConfig) -> None:
+def test_authentication_decorators_unit(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     decorator = SecurityDecorator(security_config)
 
     mock_func = Mock()
@@ -194,7 +198,9 @@ def test_authentication_decorators_unit(security_config: SecurityConfig) -> None
     assert route_config6.required_headers["X-Other"] == "required"
 
 
-def test_authentication_failures_unit(security_config: SecurityConfig) -> None:
+def test_authentication_failures_unit(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     decorator = SecurityDecorator(security_config)
 
     mock_func = Mock()
@@ -218,7 +224,9 @@ def test_authentication_failures_unit(security_config: SecurityConfig) -> None:
     assert route_config2.auth_required == "basic"
 
 
-def test_multiple_auth_decorators(security_config: SecurityConfig) -> None:
+def test_multiple_auth_decorators(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     decorator = SecurityDecorator(security_config)
 
     mock_func = Mock()
@@ -237,7 +245,7 @@ def test_multiple_auth_decorators(security_config: SecurityConfig) -> None:
 
 
 def test_auth_passive_mode_config() -> None:
-    security_config = SecurityConfig(
+    security_config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         passive_mode=True,
@@ -258,7 +266,9 @@ def test_auth_passive_mode_config() -> None:
     assert security_config.passive_mode is True
 
 
-def test_require_auth_with_various_types(security_config: SecurityConfig) -> None:
+def test_require_auth_with_various_types(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     decorator = SecurityDecorator(security_config)
 
     for auth_type in ["bearer", "basic", "digest", "token"]:
@@ -276,7 +286,7 @@ def test_require_auth_with_various_types(security_config: SecurityConfig) -> Non
 
 @pytest.fixture
 def api_key_guard() -> Iterator[DjangoAPIGuard]:
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,

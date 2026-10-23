@@ -1,5 +1,7 @@
 import os
 
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.settings")
 
 import django
@@ -16,8 +18,8 @@ from djangoapi_guard import SecurityConfig, SecurityDecorator
 
 
 @pytest.fixture
-def security_config() -> SecurityConfig:
-    return SecurityConfig(
+def security_config() -> SecurityConfig[SyncGuardRequest]:
+    return SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         trusted_proxies=("127.0.0.1",),
@@ -26,7 +28,7 @@ def security_config() -> SecurityConfig:
 
 
 @pytest.fixture
-def decorator(security_config: SecurityConfig) -> SecurityDecorator:
+def decorator(security_config: SecurityConfig[SyncGuardRequest]) -> SecurityDecorator:
     return SecurityDecorator(security_config)
 
 
@@ -129,7 +131,9 @@ def test_honeypot_detection_configuration(
     assert callable(validator)
 
 
-def test_honeypot_form_detection(security_config: SecurityConfig) -> None:
+def test_honeypot_form_detection(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     dec = SecurityDecorator(security_config)
     mock_func = Mock()
     mock_func.__name__ = mock_func.__qualname__ = "test_func"
@@ -158,7 +162,9 @@ def test_honeypot_form_detection(security_config: SecurityConfig) -> None:
     assert result.status_code == 403
 
 
-def test_honeypot_json_exception(security_config: SecurityConfig) -> None:
+def test_honeypot_json_exception(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     dec = SecurityDecorator(security_config)
     mock_func = Mock()
     mock_func.__name__ = mock_func.__qualname__ = "test_func"
@@ -184,7 +190,9 @@ def test_honeypot_json_exception(security_config: SecurityConfig) -> None:
     assert result is None
 
 
-def test_honeypot_json_detection(security_config: SecurityConfig) -> None:
+def test_honeypot_json_detection(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     dec = SecurityDecorator(security_config)
     mock_func = Mock()
     mock_func.__name__ = mock_func.__qualname__ = "test_func"

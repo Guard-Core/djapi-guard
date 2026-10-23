@@ -13,6 +13,7 @@ from django.http import HttpResponse
 from django.test import RequestFactory, override_settings
 from guard_core.exceptions import BodyReadStalledError
 from guard_core.models import SecurityConfig
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard.adapters import DjangoGuardRequest
 from djangoapi_guard.middleware import DjangoAPIGuard
@@ -176,7 +177,7 @@ def test_the_server_socket_is_restored_when_the_read_stalls() -> None:
     assert fake.timeouts == [None, 0.25, None]
 
 
-def _config(**overrides: Any) -> SecurityConfig:
+def _config(**overrides: Any) -> SecurityConfig[SyncGuardRequest]:
     fields: dict[str, Any] = {
         "enable_redis": False,
         "enable_agent": False,
@@ -187,7 +188,7 @@ def _config(**overrides: Any) -> SecurityConfig:
         "ban_on_hostile_signals": False,
     }
     fields.update(overrides)
-    return SecurityConfig(**fields)
+    return SecurityConfig[SyncGuardRequest](**fields)
 
 
 class _TimingOutHandler(WSGIRequestHandler):
@@ -198,7 +199,7 @@ class _TimingOutHandler(WSGIRequestHandler):
 
 
 @contextmanager
-def _serve(config: SecurityConfig) -> Iterator[int]:
+def _serve(config: SecurityConfig[SyncGuardRequest]) -> Iterator[int]:
     with override_settings(
         ROOT_URLCONF="tests.urls_idle_body", GUARD_SECURITY_CONFIG=config
     ):
@@ -281,7 +282,7 @@ def test_a_script_path_is_clean_only_when_the_app_declares_it(
     import django.conf
 
     with override_settings(ROOT_URLCONF="tests.urls_idle_body"):
-        django.conf.settings.GUARD_SECURITY_CONFIG = SecurityConfig(
+        django.conf.settings.GUARD_SECURITY_CONFIG = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=True,

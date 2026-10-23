@@ -14,6 +14,7 @@ from django.http import HttpRequest, HttpResponse
 from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync.decorators.base import RouteConfig
 from guard_core.sync.handlers.behavior_handler import BehaviorRule
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard import SecurityConfig, SecurityDecorator
 from djangoapi_guard.adapters import DjangoGuardRequest
@@ -21,15 +22,15 @@ from djangoapi_guard.middleware import DjangoAPIGuard
 
 
 @pytest.fixture
-def security_config() -> SecurityConfig:
-    return SecurityConfig(
+def security_config() -> SecurityConfig[SyncGuardRequest]:
+    return SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
     )
 
 
-def _make_middleware(config: SecurityConfig) -> DjangoAPIGuard:
+def _make_middleware(config: SecurityConfig[SyncGuardRequest]) -> DjangoAPIGuard:
     from django.conf import settings
 
     settings.GUARD_SECURITY_CONFIG = config
@@ -41,7 +42,9 @@ def _make_middleware(config: SecurityConfig) -> DjangoAPIGuard:
     return middleware
 
 
-def test_set_decorator_handler(security_config: SecurityConfig) -> None:
+def test_set_decorator_handler(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     middleware = _make_middleware(security_config)
 
     decorator = SecurityDecorator(security_config)
@@ -52,7 +55,9 @@ def test_set_decorator_handler(security_config: SecurityConfig) -> None:
     assert middleware.guard_decorator is None
 
 
-def test_get_endpoint_id_with_route(security_config: SecurityConfig) -> None:
+def test_get_endpoint_id_with_route(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     middleware = _make_middleware(security_config)
 
     mock_request = Mock()
@@ -78,7 +83,7 @@ def test_get_endpoint_id_with_route(security_config: SecurityConfig) -> None:
     assert endpoint_id == "GET:/test"
 
 
-def test_should_bypass_check(security_config: SecurityConfig) -> None:
+def test_should_bypass_check(security_config: SecurityConfig[SyncGuardRequest]) -> None:
     middleware = _make_middleware(security_config)
 
     assert middleware.route_resolver is not None
@@ -98,7 +103,9 @@ def test_should_bypass_check(security_config: SecurityConfig) -> None:
     )
 
 
-def test_check_route_ip_access_invalid_ip(security_config: SecurityConfig) -> None:
+def test_check_route_ip_access_invalid_ip(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     middleware = _make_middleware(security_config)
 
     mock_route_config = Mock()
@@ -111,7 +118,9 @@ def test_check_route_ip_access_invalid_ip(security_config: SecurityConfig) -> No
     assert result is False
 
 
-def test_check_route_ip_access_blacklist(security_config: SecurityConfig) -> None:
+def test_check_route_ip_access_blacklist(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     middleware = _make_middleware(security_config)
 
     mock_route_config = Mock()
@@ -130,7 +139,9 @@ def test_check_route_ip_access_blacklist(security_config: SecurityConfig) -> Non
     assert result is None
 
 
-def test_check_route_ip_access_whitelist(security_config: SecurityConfig) -> None:
+def test_check_route_ip_access_whitelist(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     middleware = _make_middleware(security_config)
 
     mock_route_config = Mock()
@@ -149,7 +160,9 @@ def test_check_route_ip_access_whitelist(security_config: SecurityConfig) -> Non
     assert result is False
 
 
-def test_check_route_ip_access_countries(security_config: SecurityConfig) -> None:
+def test_check_route_ip_access_countries(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     middleware = _make_middleware(security_config)
 
     mock_geo_handler = Mock()
@@ -182,7 +195,9 @@ def test_check_route_ip_access_countries(security_config: SecurityConfig) -> Non
     assert result is False
 
 
-def test_check_user_agent_allowed(security_config: SecurityConfig) -> None:
+def test_check_user_agent_allowed(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     middleware = _make_middleware(security_config)
 
     mock_route_config = Mock()
@@ -203,7 +218,9 @@ def test_check_user_agent_allowed(security_config: SecurityConfig) -> None:
         mock_global.assert_called_once()
 
 
-def test_time_window_error_handling(security_config: SecurityConfig) -> None:
+def test_time_window_error_handling(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     middleware = _make_middleware(security_config)
 
     invalid_time_restrictions: dict[str, str] = {"invalid": "data"}
@@ -215,7 +232,9 @@ def test_time_window_error_handling(security_config: SecurityConfig) -> None:
         mock_error.assert_called_once()
 
 
-def test_time_window_overnight(security_config: SecurityConfig) -> None:
+def test_time_window_overnight(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     middleware = _make_middleware(security_config)
 
     time_restrictions = {"start": "22:00", "end": "06:00"}
@@ -242,7 +261,7 @@ def test_time_window_overnight(security_config: SecurityConfig) -> None:
         assert result is False
 
 
-def test_time_window_normal(security_config: SecurityConfig) -> None:
+def test_time_window_normal(security_config: SecurityConfig[SyncGuardRequest]) -> None:
     middleware = _make_middleware(security_config)
 
     time_restrictions = {"start": "09:00", "end": "17:00"}
@@ -263,7 +282,7 @@ def test_time_window_normal(security_config: SecurityConfig) -> None:
 
 
 def test_behavioral_rules_without_guard_decorator(
-    security_config: SecurityConfig,
+    security_config: SecurityConfig[SyncGuardRequest],
 ) -> None:
     middleware = _make_middleware(security_config)
 
@@ -282,7 +301,7 @@ def test_behavioral_rules_without_guard_decorator(
 
 
 def test_behavioral_usage_rules_with_decorator(
-    security_config: SecurityConfig,
+    security_config: SecurityConfig[SyncGuardRequest],
 ) -> None:
     middleware = _make_middleware(security_config)
 
@@ -325,7 +344,7 @@ def test_behavioral_usage_rules_with_decorator(
 
 
 def test_behavioral_return_rules_with_decorator(
-    security_config: SecurityConfig,
+    security_config: SecurityConfig[SyncGuardRequest],
 ) -> None:
     middleware = _make_middleware(security_config)
 
@@ -371,7 +390,7 @@ def test_behavioral_return_rules_with_decorator(
 
 
 def test_get_route_decorator_config_no_guard_decorator(
-    security_config: SecurityConfig,
+    security_config: SecurityConfig[SyncGuardRequest],
 ) -> None:
     middleware = _make_middleware(security_config)
 
@@ -391,7 +410,7 @@ def test_get_route_decorator_config_no_guard_decorator(
 
 
 def test_get_route_decorator_config_no_guard_route_id(
-    security_config: SecurityConfig,
+    security_config: SecurityConfig[SyncGuardRequest],
 ) -> None:
     middleware = _make_middleware(security_config)
 
@@ -413,7 +432,7 @@ def test_get_route_decorator_config_no_guard_route_id(
 
 
 def test_get_route_decorator_config_no_matching_route(
-    security_config: SecurityConfig,
+    security_config: SecurityConfig[SyncGuardRequest],
 ) -> None:
     middleware = _make_middleware(security_config)
 
@@ -435,7 +454,9 @@ def test_get_route_decorator_config_no_matching_route(
     assert result is None
 
 
-def test_bypass_all_security_checks(security_config: SecurityConfig) -> None:
+def test_bypass_all_security_checks(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     mock_route_config = RouteConfig()
     mock_route_config.bypassed_checks = {"all"}
 
@@ -457,7 +478,7 @@ def test_bypass_all_security_checks_with_custom_modifier() -> None:
     def custom_modifier(response: GuardResponse) -> GuardResponse:
         return response
 
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -505,7 +526,7 @@ def test_bypass_all_security_checks_with_custom_modifier() -> None:
     ],
 )
 def test_route_specific_extension_validations(
-    security_config: SecurityConfig,
+    security_config: SecurityConfig[SyncGuardRequest],
     test_case: dict[str, Any],
     description: str,
 ) -> None:
@@ -530,7 +551,9 @@ def test_route_specific_extension_validations(
         )
 
 
-def test_route_specific_rate_limit_config(security_config: SecurityConfig) -> None:
+def test_route_specific_rate_limit_config(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     decorator = SecurityDecorator(security_config)
 
     route_config = RouteConfig()

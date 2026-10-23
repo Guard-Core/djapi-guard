@@ -7,6 +7,7 @@ from django.conf import settings
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard import (
     BehaviorRule,
@@ -22,7 +23,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-config: SecurityConfig = settings.GUARD_SECURITY_CONFIG
+config: SecurityConfig[SyncGuardRequest] = settings.GUARD_SECURITY_CONFIG
 guard = SecurityDecorator(config)
 
 

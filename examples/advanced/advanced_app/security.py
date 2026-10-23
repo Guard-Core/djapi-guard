@@ -27,7 +27,7 @@ def custom_response_modifier(response: GuardResponse) -> GuardResponse:
     return response
 
 
-security_config = SecurityConfig(
+security_config = SecurityConfig[GuardRequest](
     whitelist=[],
     blacklist=["192.168.100.0/24"],
     trusted_proxies=["172.16.0.0/12", "10.0.0.0/8"],

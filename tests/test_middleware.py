@@ -30,15 +30,17 @@ from tests.redis_isolation import REDIS_URL
 @pytest.fixture(autouse=True)
 def reset_rate_limiter() -> Iterator[None]:
     yield
-    config = SecurityConfig(enable_redis=False, enable_agent=False)
+    config = SecurityConfig[SyncGuardRequest](enable_redis=False, enable_agent=False)
     handler = rate_limit_handler(config)
     handler.reset()
 
 
 class TestDjangoAPIGuard:
-    def _make_middleware(self, config: SecurityConfig | None = None) -> DjangoAPIGuard:
+    def _make_middleware(
+        self, config: SecurityConfig[SyncGuardRequest] | None = None
+    ) -> DjangoAPIGuard:
         if config is None:
-            config = SecurityConfig(
+            config = SecurityConfig[SyncGuardRequest](
                 enable_redis=False,
                 enable_agent=False,
                 enable_penetration_detection=False,
@@ -74,7 +76,7 @@ class TestDjangoAPIGuard:
         assert response.status_code == 403
 
     def test_excluded_path(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -87,7 +89,7 @@ class TestDjangoAPIGuard:
         assert response.status_code == 200
 
     def test_ip_blacklist(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -101,7 +103,7 @@ class TestDjangoAPIGuard:
         assert response.status_code == 403
 
     def test_ip_whitelist_allows(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -115,7 +117,7 @@ class TestDjangoAPIGuard:
         assert response.status_code == 200
 
     def test_ip_whitelist_blacklist_combined(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             whitelist=("127.0.0.1",),
@@ -145,7 +147,7 @@ class TestDjangoAPIGuard:
         assert response.status_code == 403
 
     def test_rate_limiting(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -163,7 +165,7 @@ class TestDjangoAPIGuard:
         assert response.status_code == 429
 
     def test_rate_limiting_with_reset(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -197,7 +199,7 @@ class TestDjangoAPIGuard:
         assert response.status_code == 200
 
     def test_rate_limiting_multiple_ips(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             rate_limit=2,
@@ -233,7 +235,7 @@ class TestDjangoAPIGuard:
         assert response.status_code == 429
 
     def test_rate_limiting_disabled(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -249,7 +251,7 @@ class TestDjangoAPIGuard:
             assert response.status_code == 200
 
     def test_sliding_window_rate_limiting(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -282,7 +284,7 @@ class TestDjangoAPIGuard:
         assert response.status_code == 200
 
     def test_cleanup_expired_request_times(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -308,7 +310,7 @@ class TestDjangoAPIGuard:
         assert len(handler.request_timestamps) == 0
 
     def test_rate_limiter_deque_cleanup(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -346,7 +348,7 @@ class TestDjangoAPIGuard:
         assert len(handler.request_timestamps[client_ip]) == 1
 
     def test_passive_mode(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -361,7 +363,7 @@ class TestDjangoAPIGuard:
         assert response.status_code == 200
 
     def test_passive_mode_rate_limiting(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -379,7 +381,7 @@ class TestDjangoAPIGuard:
         assert response.status_code == 200
 
     def test_passive_mode_penetration_detection(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             passive_mode=True,
@@ -405,7 +407,7 @@ class TestDjangoAPIGuard:
             assert response.status_code == 200
 
     def test_user_agent_blocking(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -419,7 +421,7 @@ class TestDjangoAPIGuard:
         assert response.status_code == 403
 
     def test_user_agent_filtering_allowed(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -446,7 +448,7 @@ class TestDjangoAPIGuard:
                 return DjangoGuardResponse(HttpResponse("Custom block", status=403))
             return None
 
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -472,7 +474,7 @@ class TestDjangoAPIGuard:
             response.headers["X-Modified"] = "True"
             return response
 
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -492,7 +494,7 @@ class TestDjangoAPIGuard:
             response.headers["X-Modified"] = "True"
             return response
 
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -527,7 +529,7 @@ class TestDjangoAPIGuard:
                 return DjangoGuardResponse(HttpResponse("I'm a teapot", status=418))
             return None
 
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -548,7 +550,7 @@ class TestDjangoAPIGuard:
         assert response.status_code == 200
 
     def test_custom_error_responses(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -560,7 +562,7 @@ class TestDjangoAPIGuard:
         assert b"Custom Forbidden" in response.body
 
     def test_custom_error_responses_with_rate_limit(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             blacklist=("192.168.1.3",),
@@ -597,7 +599,7 @@ class TestDjangoAPIGuard:
         assert b"Custom Too Many Requests" in response.content
 
     def test_cors_preflight(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -614,7 +616,7 @@ class TestDjangoAPIGuard:
         assert response["Access-Control-Allow-Origin"] == "http://example.com"
 
     def test_cors_preflight_with_methods_and_headers(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -639,7 +641,7 @@ class TestDjangoAPIGuard:
         )
 
         security_headers_manager.reset()
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -654,7 +656,7 @@ class TestDjangoAPIGuard:
         assert "Access-Control-Allow-Origin" not in response
 
     def test_cloud_ip_blocking(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -676,7 +678,7 @@ class TestDjangoAPIGuard:
             assert response.status_code == 200
 
     def test_cloud_ip_refresh_no_providers(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -689,7 +691,7 @@ class TestDjangoAPIGuard:
         assert middleware.last_cloud_ip_refresh == initial_refresh_time
 
     def test_penetration_detection_disabled(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -708,7 +710,7 @@ class TestDjangoAPIGuard:
         assert response.status_code == 200
 
     def test_emergency_mode_passive(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -733,7 +735,7 @@ class TestDjangoAPIGuard:
         middleware.reset()
 
     def test_reset_clears_rate_limits(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -762,7 +764,7 @@ class TestDjangoAPIGuard:
         assert response.status_code == 200
 
     def test_redis_disabled(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -773,7 +775,7 @@ class TestDjangoAPIGuard:
         middleware.rate_limit_handler.reset()
 
     def test_redis_initialization(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=True,
             enable_agent=False,
             redis_url=REDIS_URL,
@@ -806,7 +808,7 @@ class TestDjangoAPIGuard:
             rate_init.assert_called_once()
 
     def test_redis_initialization_without_cloud(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=True,
             enable_agent=False,
             redis_url=REDIS_URL,
@@ -838,7 +840,7 @@ class TestDjangoAPIGuard:
             rate_init.assert_called_once()
 
     def test_agent_initialization_import_error(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=True,
             agent_api_key="test-key",
@@ -852,7 +854,7 @@ class TestDjangoAPIGuard:
             assert middleware.agent_handler is None
 
     def test_agent_initialization_success(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=True,
             agent_api_key="test-key",
@@ -880,7 +882,7 @@ class TestDjangoAPIGuard:
                 mock_guard_agent_fn.assert_called_once_with(mock_agent_config)
 
     def test_agent_initialization_invalid_config(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=True,
             agent_api_key="test-key",
@@ -893,7 +895,7 @@ class TestDjangoAPIGuard:
             assert middleware.agent_handler is None
 
     def test_request_with_unknown_client_ip(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -910,7 +912,7 @@ class TestDjangoAPIGuard:
             assert response.status_code == 200
 
     def test_set_decorator_handler(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -931,7 +933,7 @@ class TestDjangoAPIGuard:
         assert middleware.handler_initializer.guard_decorator is mock_decorator
 
     def test_security_headers_disabled(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -947,7 +949,7 @@ class TestDjangoAPIGuard:
         assert "X-Content-Type-Options" not in response
 
     def test_security_headers_none(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -962,7 +964,7 @@ class TestDjangoAPIGuard:
         assert response.status_code == 200
 
     def test_ipv6_blacklist(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             whitelist=("::1", "2001:db8::1"),
@@ -998,7 +1000,7 @@ class TestDjangoAPIGuard:
         assert response.status_code == 403
 
     def test_ipv6_cidr_whitelist_blacklist(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             whitelist=("2001:db8::/32",),
@@ -1035,7 +1037,7 @@ class TestDjangoAPIGuard:
         assert response.status_code == 403
 
     def test_mixed_ipv4_ipv6_handling(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             whitelist=("127.0.0.1", "::1", "192.168.1.0/24", "2001:db8::/32"),
@@ -1085,7 +1087,7 @@ class TestDjangoAPIGuard:
         assert response.status_code == 403
 
     def test_ipv6_rate_limiting(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             rate_limit=2,
@@ -1126,13 +1128,17 @@ class TestDjangoAPIGuard:
         response = middleware(request)
         assert response.status_code == 200
 
-    def _make_redis_middleware(self, config: SecurityConfig) -> DjangoAPIGuard:
+    def _make_redis_middleware(
+        self, config: SecurityConfig[SyncGuardRequest]
+    ) -> DjangoAPIGuard:
         with patch(
             "guard_core.sync.core.initialization.handler_initializer.HandlerInitializer.initialize_redis_handlers"
         ):
             return self._make_middleware(config)
 
-    def _real_redis_rate_limiter(self, config: SecurityConfig) -> tuple[Any, Any]:
+    def _real_redis_rate_limiter(
+        self, config: SecurityConfig[SyncGuardRequest]
+    ) -> tuple[Any, Any]:
         from guard_core.sync.handlers.redis_handler import RedisManager
 
         middleware = self._make_redis_middleware(config)
@@ -1167,7 +1173,7 @@ class TestDjangoAPIGuard:
         return int(stats.get("calls", 0))
 
     def test_lua_script_execution(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=True,
             enable_agent=False,
             redis_url=REDIS_URL,
@@ -1193,7 +1199,7 @@ class TestDjangoAPIGuard:
             redis.close()
 
     def test_fallback_to_pipeline(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=True,
             enable_agent=False,
             redis_url=REDIS_URL,
@@ -1222,7 +1228,7 @@ class TestDjangoAPIGuard:
     def test_rate_limiter_redis_errors(self) -> None:
         from redis.exceptions import RedisError
 
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=True,
             enable_agent=False,
             redis_url=REDIS_URL,
@@ -1306,7 +1312,7 @@ class TestDjangoAPIGuard:
             mock_error.assert_not_called()
 
     def test_rate_limiter_init_redis_exception(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=True,
             enable_agent=False,
             redis_url=REDIS_URL,
@@ -1334,7 +1340,7 @@ class TestDjangoAPIGuard:
         )
 
     def test_rate_limit_reset_with_redis_errors(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=True,
             enable_agent=False,
             redis_url=REDIS_URL,
@@ -1365,7 +1371,7 @@ class TestDjangoAPIGuard:
             assert "Failed to reset Redis rate limits" in args[0]
 
     def test_https_enforcement(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -1380,7 +1386,7 @@ class TestDjangoAPIGuard:
         assert response.status_code == 301
 
     def test_excluded_paths_multiple(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -1396,9 +1402,11 @@ class TestDjangoAPIGuard:
 
 
 class TestDjangoAPIGuardCoverage:
-    def _make_middleware(self, config: SecurityConfig | None = None) -> DjangoAPIGuard:
+    def _make_middleware(
+        self, config: SecurityConfig[SyncGuardRequest] | None = None
+    ) -> DjangoAPIGuard:
         if config is None:
-            config = SecurityConfig(
+            config = SecurityConfig[SyncGuardRequest](
                 enable_redis=False, enable_penetration_detection=False
             )
 
@@ -1432,7 +1440,7 @@ class TestDjangoAPIGuardCoverage:
         from guard_core.sync.handlers.ipinfo_handler import IPInfoManager
 
         handler = IPInfoManager("fake", Path("/tmp/test.mmdb"))
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_penetration_detection=False,
             blocked_countries=frozenset({"CN"}),
@@ -1442,7 +1450,7 @@ class TestDjangoAPIGuardCoverage:
         assert middleware.geo_ip_handler is not None
 
     def test_security_headers_not_configured(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_penetration_detection=False,
             security_headers=None,
@@ -1455,7 +1463,7 @@ class TestDjangoAPIGuardCoverage:
         )
 
         security_headers_manager.reset()
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_penetration_detection=False,
             security_headers={"enabled": False},
@@ -1571,7 +1579,7 @@ class TestDjangoAPIGuardCoverage:
             assert response.status_code == 403
 
     def test_call_bypass_all_invokes_call_next(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -1639,7 +1647,7 @@ class TestDjangoAPIGuardCoverage:
         mock_module.guard_agent = MagicMock(return_value=mock_agent)
         mock_config = MagicMock()
 
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_penetration_detection=False,
             enable_agent=True,
@@ -1664,7 +1672,7 @@ class TestDjangoAPIGuardCoverage:
     def test_agent_init_import_blocked(self) -> None:
         import builtins
 
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_penetration_detection=False,
             enable_agent=True,
@@ -1701,7 +1709,7 @@ class TestDjangoAPIGuardCoverage:
             sys.modules.update(saved_modules)
 
     def test_agent_init_runtime_error(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_penetration_detection=False,
             enable_agent=True,
@@ -1723,7 +1731,7 @@ class TestDjangoAPIGuardCoverage:
             assert middleware.agent_handler is None
 
     def test_agent_init_config_returns_none(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_penetration_detection=False,
             enable_agent=True,
@@ -1743,7 +1751,7 @@ class TestDjangoAPIGuardCoverage:
         assert result.status_code == 200
 
     def test_refresh_cloud_ip_ranges(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_penetration_detection=False,
             block_cloud_providers=frozenset({"AWS"}),
@@ -1830,7 +1838,7 @@ class TestDjangoAPIGuardCoverage:
             middleware._initialize_handlers()
 
     def test_build_preflight_response_cors_handler_none(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -1920,7 +1928,7 @@ class TestDjangoAPIGuardCoverage:
         assert len(mapping) == 2
 
     def test_agent_stats_returns_disabled_when_agent_handler_unset(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -1930,7 +1938,7 @@ class TestDjangoAPIGuardCoverage:
         assert middleware.agent_stats == {"enabled": False}
 
     def test_agent_stats_returns_enabled_with_agent_handler_stats(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -1951,7 +1959,7 @@ class TestDjangoAPIGuardCoverage:
         fake_handler.get_stats.assert_called_once()
 
     def test_agent_stats_reflects_live_drop_counter_increments(self) -> None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,

@@ -10,14 +10,15 @@ from django.test import Client, override_settings
 from django.urls import clear_url_caches
 from guard_core.models import SecurityConfig
 from guard_core.sync.handlers.ratelimit_handler import rate_limit_handler
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 import djangoapi_guard._decorator_adoption as adoption
 import djangoapi_guard.middleware as middleware_module
 from djangoapi_guard import SecurityDecorator
 
 
-def _config() -> SecurityConfig:
-    return SecurityConfig(
+def _config() -> SecurityConfig[SyncGuardRequest]:
+    return SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,

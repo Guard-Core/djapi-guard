@@ -27,11 +27,11 @@ def _get_response(request: HttpRequest) -> HttpResponse:
 
 
 def _make_middleware(
-    config: SecurityConfig | None = None,
+    config: SecurityConfig[SyncGuardRequest] | None = None,
 ) -> DjangoAPIGuard:
     """Create a DjangoAPIGuard instance with the given config."""
     if config is None:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
@@ -54,7 +54,7 @@ def reset_rate_limiter() -> Generator[None, None, None]:
 
 def test_rate_limiting() -> None:
     """Test the rate limiting functionality."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -89,7 +89,7 @@ def test_rate_limiting() -> None:
 
 def test_excluded_paths() -> None:
     """Test that excluded paths bypass security checks."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -106,7 +106,7 @@ def test_excluded_paths() -> None:
 
 def test_ip_whitelist() -> None:
     """Test IP whitelist functionality."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -123,7 +123,7 @@ def test_ip_whitelist() -> None:
 
 def test_ip_blacklist() -> None:
     """Test IP blacklist functionality."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -140,7 +140,7 @@ def test_ip_blacklist() -> None:
 
 def test_user_agent_blocking() -> None:
     """Test user agent blocking."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -157,7 +157,7 @@ def test_user_agent_blocking() -> None:
 
 def test_normal_request() -> None:
     """Test a normal request passes through."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -173,7 +173,7 @@ def test_normal_request() -> None:
 
 def test_custom_error_responses() -> None:
     """Test custom error responses."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -191,7 +191,7 @@ def test_custom_error_responses() -> None:
 
 def test_passive_mode() -> None:
     """Test passive mode doesn't block requests."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -211,7 +211,7 @@ def test_passive_mode() -> None:
 
 def test_cors_preflight() -> None:
     """Test CORS preflight request."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -235,7 +235,7 @@ def test_cors_preflight() -> None:
 
 def test_penetration_detection() -> None:
     """Test penetration attempt detection."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=True,
@@ -251,7 +251,7 @@ def test_penetration_detection() -> None:
 
 def test_banned_ip() -> None:
     """Test that banned IPs are blocked."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -270,7 +270,7 @@ def test_banned_ip() -> None:
 
 def test_security_headers_applied() -> None:
     """Test that security headers are applied to responses."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -294,7 +294,7 @@ def test_security_headers_applied() -> None:
 
 def test_middleware_reset() -> None:
     """Test middleware reset clears state."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -306,7 +306,7 @@ def test_middleware_reset() -> None:
 
 def test_multiple_requests_rate_limit() -> None:
     """Test rate limiting with multiple unique IPs."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -325,7 +325,7 @@ def test_multiple_requests_rate_limit() -> None:
 
 def test_https_enforcement() -> None:
     """Test HTTPS enforcement."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -350,7 +350,7 @@ def test_guard_with_custom_check() -> None:
             return DjangoGuardResponse(HttpResponse("Blocked", status=403))
         return None
 
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -370,7 +370,7 @@ def test_guard_with_custom_response_modifier() -> None:
         response.headers["X-Custom-Header"] = "modified"
         return response
 
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -388,7 +388,7 @@ def test_guard_with_custom_response_modifier() -> None:
 
 def test_cidr_blacklist_blocking() -> None:
     """Test CIDR range in blacklist."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -405,7 +405,7 @@ def test_cidr_blacklist_blocking() -> None:
 
 def test_cidr_whitelist_allows() -> None:
     """Test CIDR range in whitelist."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -422,7 +422,7 @@ def test_cidr_whitelist_allows() -> None:
 
 def test_blocked_user_agent_pattern() -> None:
     """Test regex pattern in blocked user agents."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -439,7 +439,7 @@ def test_blocked_user_agent_pattern() -> None:
 
 def test_sql_injection_detection() -> None:
     """Test SQL injection detection in query params."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=True,
@@ -455,7 +455,7 @@ def test_sql_injection_detection() -> None:
 
 def test_directory_traversal_detection() -> None:
     """Test directory traversal detection."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=True,
@@ -471,7 +471,7 @@ def test_directory_traversal_detection() -> None:
 
 def test_auto_ban_threshold() -> None:
     """Test auto-ban after threshold exceeded."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_ip_banning=True,
@@ -498,7 +498,7 @@ def test_auto_ban_threshold() -> None:
 def test_set_decorator_handler() -> None:
     from guard_core.sync.decorators.base import BaseSecurityDecorator
 
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -512,7 +512,7 @@ def test_set_decorator_handler() -> None:
 
 def test_refresh_cloud_ip_ranges() -> None:
     """Test cloud IP range refresh."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -527,7 +527,7 @@ def test_refresh_cloud_ip_ranges() -> None:
 
 def test_create_error_response() -> None:
     """Test creating error responses."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -540,7 +540,7 @@ def test_create_error_response() -> None:
 
 def test_middleware_with_disabled_security_headers() -> None:
     """Test middleware with security headers disabled."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -557,7 +557,7 @@ def test_middleware_with_disabled_security_headers() -> None:
 
 def test_middleware_with_no_security_headers() -> None:
     """Test middleware with security_headers set to None."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -574,7 +574,7 @@ def test_middleware_with_no_security_headers() -> None:
 
 def test_json_log_format() -> None:
     """Test JSON log format configuration."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -586,7 +586,7 @@ def test_json_log_format() -> None:
 
 def test_endpoint_rate_limits() -> None:
     """Test per-endpoint rate limits."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -599,7 +599,7 @@ def test_endpoint_rate_limits() -> None:
 
 def test_emergency_mode_config() -> None:
     """Test emergency mode configuration."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -612,7 +612,7 @@ def test_emergency_mode_config() -> None:
 
 def test_detection_config_fields() -> None:
     """Test detection configuration fields."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -627,7 +627,7 @@ def test_detection_config_fields() -> None:
 
 def test_middleware_process_response() -> None:
     """Test middleware processes response correctly."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -645,7 +645,7 @@ def test_middleware_process_response() -> None:
 
 def test_guard_with_agent_disabled() -> None:
     """Test middleware with agent disabled."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
@@ -656,7 +656,7 @@ def test_guard_with_agent_disabled() -> None:
 
 def test_guard_agent_init_generic_exception() -> None:
     """Test agent init with generic exception logs and continues."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=True,
         agent_api_key="test-key",

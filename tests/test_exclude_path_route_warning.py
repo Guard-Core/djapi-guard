@@ -5,6 +5,7 @@ import pytest
 from django.http import HttpResponse
 from django.test import RequestFactory, override_settings
 from guard_core.models import SecurityConfig
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard.middleware import DjangoAPIGuard
 
@@ -25,7 +26,7 @@ def _urlconf() -> Iterator[None]:
 def _middleware(entries: list[str]) -> DjangoAPIGuard:
     import django.conf
 
-    django.conf.settings.GUARD_SECURITY_CONFIG = SecurityConfig(
+    django.conf.settings.GUARD_SECURITY_CONFIG = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,

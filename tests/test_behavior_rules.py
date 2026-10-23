@@ -11,6 +11,7 @@ from django.test import RequestFactory, override_settings
 from django.urls import path
 from guard_core.models import BehaviorRuleConfig
 from guard_core.sync.handlers.behavior_handler import BehaviorRule
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard import SecurityConfig, SecurityDecorator
 from djangoapi_guard.middleware import DjangoAPIGuard
@@ -18,7 +19,7 @@ from djangoapi_guard.middleware import DjangoAPIGuard
 _IPS = itertools.count(1)
 
 security = SecurityDecorator(
-    SecurityConfig(enable_redis=False, ban_on_hostile_signals=False)
+    SecurityConfig[SyncGuardRequest](enable_redis=False, ban_on_hostile_signals=False)
 )
 
 
@@ -40,7 +41,7 @@ def _urlconf() -> Iterator[None]:
         yield
 
 
-def _config(**overrides: Any) -> SecurityConfig:
+def _config(**overrides: Any) -> SecurityConfig[SyncGuardRequest]:
     fields: dict[str, Any] = {
         "enable_redis": False,
         "enable_agent": False,
@@ -50,10 +51,10 @@ def _config(**overrides: Any) -> SecurityConfig:
         "ban_on_hostile_signals": False,
     }
     fields.update(overrides)
-    return SecurityConfig(**fields)
+    return SecurityConfig[SyncGuardRequest](**fields)
 
 
-def _guard(config: SecurityConfig) -> DjangoAPIGuard:
+def _guard(config: SecurityConfig[SyncGuardRequest]) -> DjangoAPIGuard:
     handler = BaseHandler()
     handler.load_middleware()
 
@@ -68,7 +69,9 @@ def _guard(config: SecurityConfig) -> DjangoAPIGuard:
     return guard
 
 
-def _responses(config: SecurityConfig, paths: list[str]) -> list[HttpResponseBase]:
+def _responses(
+    config: SecurityConfig[SyncGuardRequest], paths: list[str]
+) -> list[HttpResponseBase]:
     guard = _guard(config)
     ip = f"198.51.100.{next(_IPS)}"
     responses = []

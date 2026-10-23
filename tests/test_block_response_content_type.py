@@ -2,14 +2,15 @@ from django.http import HttpRequest, HttpResponse
 from django.test import RequestFactory
 from guard_core.models import SecurityConfig
 from guard_core.protocols.response_protocol import GuardResponse
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard.middleware import DjangoAPIGuard
 
 BLOCKED_IP = "203.0.113.10"
 
 
-def _config(**overrides: object) -> SecurityConfig:
-    return SecurityConfig(
+def _config(**overrides: object) -> SecurityConfig[SyncGuardRequest]:
+    return SecurityConfig[SyncGuardRequest](
         blacklist=(BLOCKED_IP,),
         enable_rate_limiting=False,
         enable_redis=False,
@@ -19,7 +20,7 @@ def _config(**overrides: object) -> SecurityConfig:
     )
 
 
-def _make_middleware(config: SecurityConfig) -> DjangoAPIGuard:
+def _make_middleware(config: SecurityConfig[SyncGuardRequest]) -> DjangoAPIGuard:
     import django.conf
 
     django.conf.settings.GUARD_SECURITY_CONFIG = config
@@ -30,7 +31,9 @@ def _make_middleware(config: SecurityConfig) -> DjangoAPIGuard:
     return DjangoAPIGuard(get_response)
 
 
-def _blocked_response_headers(config: SecurityConfig) -> tuple[int, str, str]:
+def _blocked_response_headers(
+    config: SecurityConfig[SyncGuardRequest],
+) -> tuple[int, str, str]:
     middleware = _make_middleware(config)
     factory = RequestFactory()
     request = factory.get("/ping")

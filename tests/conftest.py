@@ -9,6 +9,7 @@ from guard_core.sync.handlers.ipban_handler import ip_ban_manager
 from guard_core.sync.handlers.ratelimit_handler import RateLimitManager
 from guard_core.sync.handlers.security_headers_handler import security_headers_manager
 from guard_core.sync.handlers.suspatterns_handler import sus_patterns_handler
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 import djangoapi_guard._decorator_adoption as decorator_adoption
 from tests.redis_isolation import (
@@ -58,8 +59,8 @@ def request_factory() -> RequestFactory:
 
 
 @pytest.fixture
-def security_config() -> SecurityConfig:
-    return SecurityConfig(
+def security_config() -> SecurityConfig[SyncGuardRequest]:
+    return SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,

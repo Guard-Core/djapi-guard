@@ -10,12 +10,13 @@ from django.utils.module_loading import import_string
 from guard_core.models import SecurityConfig
 from guard_core.sync.decorators import SecurityDecorator as CoreSecurityDecorator
 from guard_core.sync.decorators.base import BaseSecurityDecorator
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 _created: list[weakref.ReferenceType[BaseSecurityDecorator]] = []
 
 
 class SecurityDecorator(CoreSecurityDecorator):
-    def __init__(self, config: SecurityConfig) -> None:
+    def __init__(self, config: SecurityConfig[SyncGuardRequest]) -> None:
         super().__init__(config)
         _created.append(weakref.ref(self))
 

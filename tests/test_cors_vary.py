@@ -3,6 +3,7 @@ import pytest
 from django.http import HttpRequest, HttpResponse
 from django.test import RequestFactory
 from guard_core.models import SecurityConfig
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard.middleware import DjangoAPIGuard
 
@@ -10,7 +11,7 @@ ORIGIN = "https://app.example.com"
 
 
 def _middleware(app_vary: str | None) -> DjangoAPIGuard:
-    django.conf.settings.GUARD_SECURITY_CONFIG = SecurityConfig(
+    django.conf.settings.GUARD_SECURITY_CONFIG = SecurityConfig[SyncGuardRequest](
         enable_cors=True,
         cors_allow_origins=[ORIGIN],
         enable_redis=False,

@@ -11,13 +11,14 @@ from unittest.mock import Mock
 
 import pytest
 from guard_core.sync.handlers.behavior_handler import BehaviorRule
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard import SecurityConfig, SecurityDecorator
 
 
 @pytest.fixture
-def security_config() -> SecurityConfig:
-    return SecurityConfig(
+def security_config() -> SecurityConfig[SyncGuardRequest]:
+    return SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         trusted_proxies=("127.0.0.1",),
@@ -27,7 +28,7 @@ def security_config() -> SecurityConfig:
 
 
 @pytest.fixture
-def decorator(security_config: SecurityConfig) -> SecurityDecorator:
+def decorator(security_config: SecurityConfig[SyncGuardRequest]) -> SecurityDecorator:
     return SecurityDecorator(security_config)
 
 
@@ -254,7 +255,9 @@ def test_return_monitor_patterns(
     assert rule.pattern == expected_pattern
 
 
-def test_behavioral_decorators_unit(security_config: SecurityConfig) -> None:
+def test_behavioral_decorators_unit(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     decorator = SecurityDecorator(security_config)
 
     mock_func = Mock()

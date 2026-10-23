@@ -16,6 +16,7 @@ import pytest
 from django.test import RequestFactory
 from guard_core.models import SecurityConfig
 from guard_core.sync.decorators.base import BaseSecurityDecorator
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard.adapters import DjangoGuardRequest
 
@@ -51,7 +52,7 @@ def rf() -> RequestFactory:
 
 @pytest.fixture()
 def decorator() -> BaseSecurityDecorator:
-    config = SecurityConfig(enable_redis=False, enable_agent=False)
+    config = SecurityConfig[SyncGuardRequest](enable_redis=False, enable_agent=False)
     return BaseSecurityDecorator(config)
 
 

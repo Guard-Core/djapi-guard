@@ -1,5 +1,7 @@
 import os
 
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.settings")
 
 import django
@@ -16,8 +18,8 @@ from djangoapi_guard import SecurityConfig, SecurityDecorator
 
 
 @pytest.fixture
-def security_config() -> SecurityConfig:
-    return SecurityConfig(
+def security_config() -> SecurityConfig[SyncGuardRequest]:
+    return SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         trusted_proxies=("127.0.0.1",),
@@ -26,7 +28,7 @@ def security_config() -> SecurityConfig:
 
 
 @pytest.fixture
-def decorator(security_config: SecurityConfig) -> SecurityDecorator:
+def decorator(security_config: SecurityConfig[SyncGuardRequest]) -> SecurityDecorator:
     return SecurityDecorator(security_config)
 
 

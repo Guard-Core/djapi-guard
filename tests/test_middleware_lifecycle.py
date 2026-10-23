@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from django.http import HttpRequest, HttpResponse
 from guard_core.models import SecurityConfig
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard.middleware import DjangoAPIGuard
 
@@ -15,11 +16,11 @@ def _noop_get_response() -> Callable[[HttpRequest], HttpResponse]:
 
 
 class _Settings:
-    def __init__(self, config: SecurityConfig) -> None:
+    def __init__(self, config: SecurityConfig[SyncGuardRequest]) -> None:
         self.GUARD_SECURITY_CONFIG = config
 
 
-def _build(config: SecurityConfig) -> DjangoAPIGuard:
+def _build(config: SecurityConfig[SyncGuardRequest]) -> DjangoAPIGuard:
     with patch("djangoapi_guard.middleware.settings", _Settings(config)):
         middleware = DjangoAPIGuard(_noop_get_response())
     middleware._initialize_handlers()
@@ -27,7 +28,7 @@ def _build(config: SecurityConfig) -> DjangoAPIGuard:
 
 
 def test_init_rebinds_agent_handler_to_composite() -> None:
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_otel=True,
         otel_service_name="guard-test",
         otel_exporter_endpoint="http://localhost:4318",
@@ -41,7 +42,7 @@ def test_init_rebinds_agent_handler_to_composite() -> None:
 
 
 def test_no_telemetry_leaves_agent_handler_bare() -> None:
-    mw = _build(SecurityConfig(enable_redis=False))
+    mw = _build(SecurityConfig[SyncGuardRequest](enable_redis=False))
 
     assert mw.handler_initializer is not None
     assert mw.handler_initializer.composite_handler is None
@@ -49,7 +50,7 @@ def test_no_telemetry_leaves_agent_handler_bare() -> None:
 
 
 def test_behavior_tracker_threaded_through_behavioral_context() -> None:
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_agent=True,
         agent_api_key="k" * 10,
         agent_project_id="p",
@@ -70,7 +71,7 @@ def test_behavior_tracker_threaded_through_behavioral_context() -> None:
 
 
 def test_execute_security_pipeline_returns_none_when_pipeline_unbuilt() -> None:
-    mw = _build(SecurityConfig(enable_redis=False))
+    mw = _build(SecurityConfig[SyncGuardRequest](enable_redis=False))
     from django.test import RequestFactory
 
     from djangoapi_guard.adapters import DjangoGuardRequest
@@ -83,7 +84,7 @@ def test_execute_security_pipeline_returns_none_when_pipeline_unbuilt() -> None:
 
 
 def test_set_decorator_handler_noop_when_not_initialized() -> None:
-    mw = _build(SecurityConfig(enable_redis=False))
+    mw = _build(SecurityConfig[SyncGuardRequest](enable_redis=False))
 
     mw.route_resolver = None
     mw.behavioral_processor = None

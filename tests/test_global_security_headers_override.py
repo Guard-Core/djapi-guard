@@ -8,6 +8,7 @@ from django.http import HttpRequest, HttpResponse
 from django.test import RequestFactory
 from guard_core.models import SecurityConfig
 from guard_core.sync.handlers.security_headers_handler import security_headers_manager
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard.middleware import DjangoAPIGuard
 
@@ -37,7 +38,9 @@ def _middleware(**overrides: Any) -> DjangoAPIGuard:
         },
     }
     values.update(overrides)
-    django.conf.settings.GUARD_SECURITY_CONFIG = SecurityConfig(**values)
+    django.conf.settings.GUARD_SECURITY_CONFIG = SecurityConfig[SyncGuardRequest](
+        **values
+    )
 
     def get_response(request: HttpRequest) -> HttpResponse:
         return HttpResponse("ok")

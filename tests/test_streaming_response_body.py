@@ -15,6 +15,7 @@ from django.http.response import HttpResponseBase
 from django.test import RequestFactory, override_settings
 from guard_core.models import SecurityConfig
 from guard_core.protocols.response_protocol import GuardResponse
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard.adapters import DjangoGuardResponse
 from djangoapi_guard.middleware import DjangoAPIGuard
@@ -43,7 +44,9 @@ def _guard(kind: str, **overrides: Any) -> DjangoAPIGuard:
         "blacklist": [],
     }
     base.update(overrides)
-    with override_settings(GUARD_SECURITY_CONFIG=SecurityConfig(**base)):
+    with override_settings(
+        GUARD_SECURITY_CONFIG=SecurityConfig[SyncGuardRequest](**base)
+    ):
         guard = DjangoAPIGuard(view)
     guard.set_decorator_handler(engine_parity_urls.security)
     return guard

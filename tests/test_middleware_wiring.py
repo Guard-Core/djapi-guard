@@ -5,6 +5,7 @@ from unittest.mock import patch
 from django.http import HttpRequest, HttpResponse
 from guard_core.models import SecurityConfig
 from guard_core.sync.core.events.composite_handler import CompositeAgentHandler
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard.middleware import DjangoAPIGuard
 
@@ -27,12 +28,14 @@ def _build(settings_override: Any) -> DjangoAPIGuard:
 
 
 class _Settings:
-    def __init__(self, config: SecurityConfig) -> None:
+    def __init__(self, config: SecurityConfig[SyncGuardRequest]) -> None:
         self.GUARD_SECURITY_CONFIG = config
 
 
 def test_event_bus_routes_through_composite_when_otel_enabled() -> None:
-    config = SecurityConfig(enable_otel=True, otel_service_name="wire-test")
+    config = SecurityConfig[SyncGuardRequest](
+        enable_otel=True, otel_service_name="wire-test"
+    )
     mw = _build(_Settings(config))
 
     assert mw.event_bus is not None
@@ -42,7 +45,9 @@ def test_event_bus_routes_through_composite_when_otel_enabled() -> None:
 
 
 def test_event_bus_routes_through_composite_when_logfire_enabled() -> None:
-    config = SecurityConfig(enable_logfire=True, logfire_service_name="wire-test")
+    config = SecurityConfig[SyncGuardRequest](
+        enable_logfire=True, logfire_service_name="wire-test"
+    )
     mw = _build(_Settings(config))
 
     assert mw.event_bus is not None
@@ -52,7 +57,7 @@ def test_event_bus_routes_through_composite_when_logfire_enabled() -> None:
 
 
 def test_event_bus_stays_bare_when_no_telemetry_configured() -> None:
-    config = SecurityConfig()
+    config = SecurityConfig[SyncGuardRequest]()
     mw = _build(_Settings(config))
 
     assert mw.event_bus is not None
@@ -62,7 +67,9 @@ def test_event_bus_stays_bare_when_no_telemetry_configured() -> None:
 
 
 def test_contexts_use_the_post_initialize_event_bus() -> None:
-    config = SecurityConfig(enable_otel=True, otel_service_name="wire-test")
+    config = SecurityConfig[SyncGuardRequest](
+        enable_otel=True, otel_service_name="wire-test"
+    )
     mw = _build(_Settings(config))
 
     assert mw.validator is not None

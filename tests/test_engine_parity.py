@@ -17,6 +17,7 @@ from django.test import RequestFactory, override_settings
 from guard_core.models import SecurityConfig
 from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync.handlers.security_headers_handler import SecurityHeadersManager
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard.middleware import DjangoAPIGuard
 from tests import engine_parity_urls
@@ -45,7 +46,9 @@ def _build(**overrides: Any) -> tuple[DjangoAPIGuard, list[str]]:
     base.update(overrides)
     handler = BaseHandler()
     handler.load_middleware()
-    with override_settings(GUARD_SECURITY_CONFIG=SecurityConfig(**base)):
+    with override_settings(
+        GUARD_SECURITY_CONFIG=SecurityConfig[SyncGuardRequest](**base)
+    ):
         guard = DjangoAPIGuard(
             cast(Callable[[HttpRequest], HttpResponseBase], handler.get_response)
         )

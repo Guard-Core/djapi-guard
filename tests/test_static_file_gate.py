@@ -11,6 +11,7 @@ from django.urls import path, re_path
 from django.views.decorators.cache import never_cache
 from django.views.static import serve
 from guard_core.models import SecurityConfig
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard.middleware import DjangoAPIGuard
 
@@ -63,7 +64,7 @@ def urlconf(tmp_path: Path) -> Iterator[Path]:
 
 
 def _middleware() -> DjangoAPIGuard:
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=True,

@@ -106,7 +106,7 @@ class DjangoAPIGuard:
                 "DjangoAPIGuard requires settings.GUARD_SECURITY_CONFIG to be "
                 "a SecurityConfig instance"
             )
-        self.config: SecurityConfig = config
+        self.config: SecurityConfig[SyncGuardRequest] = config
 
         self.logger: logging.Logger = setup_custom_logging(
             self.config.custom_log_file, log_format=self.config.log_format
@@ -586,7 +586,9 @@ class DjangoAPIGuard:
             f"{self.security_pipeline.get_check_names()}"
         )
 
-    def _configure_security_headers(self, config: SecurityConfig) -> None:
+    def _configure_security_headers(
+        self, config: "SecurityConfig[SyncGuardRequest]"
+    ) -> None:
         if not config.security_headers:
             security_headers_manager.enabled = False
             return

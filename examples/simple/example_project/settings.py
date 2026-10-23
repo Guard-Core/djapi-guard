@@ -1,6 +1,7 @@
 import os
 
 from django.http import JsonResponse
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard import SecurityConfig
 from djangoapi_guard.adapters import DjangoGuardResponse
@@ -50,7 +51,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
 ]
 
-GUARD_SECURITY_CONFIG = SecurityConfig(
+GUARD_SECURITY_CONFIG = SecurityConfig[SyncGuardRequest](
     whitelist=[],
     blacklist=["192.168.100.0/24"],
     trusted_proxies=["172.16.0.0/12", "10.0.0.0/8"],

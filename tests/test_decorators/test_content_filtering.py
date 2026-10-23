@@ -19,8 +19,8 @@ from djangoapi_guard.adapters import DjangoGuardResponse
 
 
 @pytest.fixture
-def security_config() -> SecurityConfig:
-    return SecurityConfig(
+def security_config() -> SecurityConfig[SyncGuardRequest]:
+    return SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         trusted_proxies=("127.0.0.1",),
@@ -29,7 +29,7 @@ def security_config() -> SecurityConfig:
 
 
 @pytest.fixture
-def decorator(security_config: SecurityConfig) -> SecurityDecorator:
+def decorator(security_config: SecurityConfig[SyncGuardRequest]) -> SecurityDecorator:
     return SecurityDecorator(security_config)
 
 
@@ -114,7 +114,9 @@ def test_custom_validation_decorator_applied(decorator: SecurityDecorator) -> No
     )
 
 
-def test_content_filtering_decorators_unit(security_config: SecurityConfig) -> None:
+def test_content_filtering_decorators_unit(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     decorator = SecurityDecorator(security_config)
 
     mock_func = Mock()
@@ -184,7 +186,7 @@ def test_content_filtering_decorators_unit(security_config: SecurityConfig) -> N
 
 
 def test_referrer_passive_mode_config() -> None:
-    security_config = SecurityConfig(
+    security_config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         passive_mode=True,
@@ -205,7 +207,9 @@ def test_referrer_passive_mode_config() -> None:
     assert security_config.passive_mode is True
 
 
-def test_custom_validator_returns_response(security_config: SecurityConfig) -> None:
+def test_custom_validator_returns_response(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     decorator = SecurityDecorator(security_config)
 
     mock_func = Mock()

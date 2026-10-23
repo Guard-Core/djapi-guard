@@ -6,6 +6,7 @@ from django.http import HttpRequest, HttpResponse
 from django.test import RequestFactory, override_settings
 from guard_core.models import SecurityConfig
 from guard_core.sync.handlers.ratelimit_handler import rate_limit_handler
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard.adapters import DjangoGuardRequest
 from djangoapi_guard.middleware import DjangoAPIGuard
@@ -22,7 +23,9 @@ URLCONF = override_settings(
 def _urlconf_and_clean_limits() -> Iterator[None]:
     with URLCONF:
         yield
-    rate_limit_handler(SecurityConfig(enable_redis=False, enable_agent=False)).reset()
+    rate_limit_handler(
+        SecurityConfig[SyncGuardRequest](enable_redis=False, enable_agent=False)
+    ).reset()
 
 
 def _middleware(
@@ -30,7 +33,7 @@ def _middleware(
 ) -> DjangoAPIGuard:
     import django.conf
 
-    django.conf.settings.GUARD_SECURITY_CONFIG = SecurityConfig(
+    django.conf.settings.GUARD_SECURITY_CONFIG = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,

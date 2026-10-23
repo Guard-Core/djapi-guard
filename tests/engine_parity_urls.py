@@ -1,11 +1,14 @@
 from django.http import HttpRequest, JsonResponse
 from django.urls import path
 from guard_core.models import SecurityConfig
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard import SecurityDecorator
 
 security = SecurityDecorator(
-    SecurityConfig(enable_redis=False, behavior_scan_response_body=True)
+    SecurityConfig[SyncGuardRequest](
+        enable_redis=False, behavior_scan_response_body=True
+    )
 )
 
 

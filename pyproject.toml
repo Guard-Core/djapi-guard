@@ -34,11 +34,21 @@ Issues = "https://github.com/Guard-Core/djapi-guard/issues"
 Changelog = "https://github.com/Guard-Core/djapi-guard/blob/master/CHANGELOG.md"
 
 [project.optional-dependencies]
+redis = [
+    "guard-core[redis]",
+]
+geo = [
+    "guard-core[geo]",
+]
+cloud = [
+    "guard-core[cloud]",
+]
 dev = [
     "bandit[toml]",
     "deptry",
     "django-stubs",
     "guard-agent",
+    "guard-core[cloud,geo,redis]",
     "httpx",
     "mkdocs",
     "mkdocstrings",

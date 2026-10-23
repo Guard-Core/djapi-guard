@@ -13,6 +13,7 @@ from unittest.mock import Mock
 import pytest
 from django.core.handlers.base import BaseHandler
 from django.http import HttpRequest, HttpResponse
+from django.http.response import HttpResponseBase
 from django.test import RequestFactory, override_settings
 
 from djangoapi_guard import SecurityConfig, SecurityDecorator
@@ -291,7 +292,7 @@ def api_key_guard() -> Iterator[DjangoAPIGuard]:
         handler.load_middleware()
         with override_settings(GUARD_SECURITY_CONFIG=config):
             guard = DjangoAPIGuard(
-                cast(Callable[[HttpRequest], HttpResponse], handler.get_response)
+                cast(Callable[[HttpRequest], HttpResponseBase], handler.get_response)
             )
         guard.set_decorator_handler(api_key_urls.security)
         yield guard
@@ -322,10 +323,12 @@ def test_api_key_route_refuses_a_missing_key_and_answers_a_present_one(
     missing_request.META["REMOTE_ADDR"] = "203.0.113.5"
     missing = api_key_guard(missing_request)
     assert missing.status_code in (400, 401)
+    assert isinstance(missing, HttpResponse)
     assert handler_message not in missing.content.decode()
 
     present_request = RequestFactory().get(path, headers={header: "test-key"})
     present_request.META["REMOTE_ADDR"] = "203.0.113.5"
     present = api_key_guard(present_request)
     assert present.status_code == 200
+    assert isinstance(present, HttpResponse)
     assert handler_message in present.content.decode()

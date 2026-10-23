@@ -462,6 +462,7 @@ class TestDjangoAPIGuard:
         request.META["HTTP_X_CUSTOM_HEADER"] = "block"
         response = middleware(request)
         assert response.status_code == 403
+        assert isinstance(response, HttpResponse)
         assert response.content == b"Custom block"
 
         request = factory.get("/")
@@ -590,6 +591,7 @@ class TestDjangoAPIGuard:
         request.META["REMOTE_ADDR"] = "192.168.1.3"
         response = middleware(request)
         assert response.status_code == 403
+        assert isinstance(response, HttpResponse)
         assert b"Custom Forbidden" in response.content
 
         for _ in range(5):
@@ -602,6 +604,7 @@ class TestDjangoAPIGuard:
         request.META["REMOTE_ADDR"] = "192.168.1.4"
         response = middleware(request)
         assert response.status_code == 429
+        assert isinstance(response, HttpResponse)
         assert b"Custom Too Many Requests" in response.content
 
     def test_cors_preflight(self) -> None:
@@ -1554,6 +1557,7 @@ class TestDjangoAPIGuardCoverage:
             return_value=mock_resp,
         ):
             response = middleware(request)
+            assert isinstance(response, HttpResponse)
             assert response.content == b"pass"
 
     def test_call_bypass_response(self) -> None:
@@ -1601,6 +1605,7 @@ class TestDjangoAPIGuardCoverage:
         response = middleware(request)
 
         assert response.status_code == 200
+        assert isinstance(response, HttpResponse)
         assert response.content == b"OK"
 
     def test_call_redis_unavailable_during_initialization_retries_next_request(

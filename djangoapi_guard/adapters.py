@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from typing import Any, cast
 
 from django.http import HttpRequest, HttpResponse
+from django.http.response import HttpResponseBase
 from guard_core.exceptions import BodyReadStalledError
 
 _READ_CHUNK_BYTES = 65536
@@ -186,7 +187,7 @@ class DjangoHeadersMapping(Mapping[str, str]):
 
 
 class DjangoGuardResponse:
-    def __init__(self, response: HttpResponse) -> None:
+    def __init__(self, response: HttpResponseBase) -> None:
         self._response = response
 
     @property
@@ -200,13 +201,14 @@ class DjangoGuardResponse:
 
     @property
     def body(self) -> bytes | None:
-        result: bytes | None = self._response.content
-        return result
+        if isinstance(self._response, HttpResponse):
+            return self._response.content
+        return None
 
     def read_body_prefix(self, max_bytes: int) -> bytes:
         if max_bytes <= 0:
             return b""
-        content: bytes | None = getattr(self._response, "content", None)
+        content = self.body
         if content is None:
             return b""
         return content[:max_bytes]
@@ -228,7 +230,7 @@ class DjangoResponseFactory:
         return DjangoGuardResponse(response)
 
 
-def unwrap_response(guard_response: Any) -> HttpResponse:
+def unwrap_response(guard_response: Any) -> HttpResponseBase:
     if isinstance(guard_response, DjangoGuardResponse):
         return guard_response._response
     response = HttpResponse(

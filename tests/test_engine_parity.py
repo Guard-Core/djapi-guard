@@ -12,6 +12,7 @@ import pytest
 from django.core.exceptions import ImproperlyConfigured
 from django.core.handlers.base import BaseHandler
 from django.http import HttpRequest, HttpResponse
+from django.http.response import HttpResponseBase
 from django.test import RequestFactory, override_settings
 from guard_core.models import SecurityConfig
 from guard_core.protocols.response_protocol import GuardResponse
@@ -46,7 +47,7 @@ def _build(**overrides: Any) -> tuple[DjangoAPIGuard, list[str]]:
     handler.load_middleware()
     with override_settings(GUARD_SECURITY_CONFIG=SecurityConfig(**base)):
         guard = DjangoAPIGuard(
-            cast(Callable[[HttpRequest], HttpResponse], handler.get_response)
+            cast(Callable[[HttpRequest], HttpResponseBase], handler.get_response)
         )
     guard.set_decorator_handler(engine_parity_urls.security)
     metrics: list[str] = []
@@ -63,7 +64,7 @@ def _build(**overrides: Any) -> tuple[DjangoAPIGuard, list[str]]:
 
 def _get(
     guard: DjangoAPIGuard, path: str, remote_addr: str | None = "127.0.0.1"
-) -> HttpResponse:
+) -> HttpResponseBase:
     request = RequestFactory().get(path)
     if remote_addr is None:
         request.META.pop("REMOTE_ADDR", None)
@@ -101,6 +102,7 @@ def test_no_client_address_gets_fail_secure_403_by_default() -> None:
     resp = _get(guard, "/open/", None)
 
     assert resp.status_code == 403
+    assert isinstance(resp, HttpResponse)
     assert b"Client address could not be determined" in resp.content
     assert metrics == []
 
@@ -124,6 +126,7 @@ def test_route_bypass_reaches_real_view_and_skips_response_pass() -> None:
     resp = _get(guard, "/bypassed/")
 
     assert resp.status_code == 200
+    assert isinstance(resp, HttpResponse)
     assert b"real view" in resp.content
     assert resp["X-Modified"] == "1"
     assert metrics == []

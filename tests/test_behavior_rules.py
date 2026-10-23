@@ -6,6 +6,7 @@ from unittest.mock import Mock
 import pytest
 from django.core.handlers.base import BaseHandler
 from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.http.response import HttpResponseBase
 from django.test import RequestFactory, override_settings
 from django.urls import path
 from guard_core.models import BehaviorRuleConfig
@@ -67,7 +68,7 @@ def _guard(config: SecurityConfig) -> DjangoAPIGuard:
     return guard
 
 
-def _responses(config: SecurityConfig, paths: list[str]) -> list[HttpResponse]:
+def _responses(config: SecurityConfig, paths: list[str]) -> list[HttpResponseBase]:
     guard = _guard(config)
     ip = f"198.51.100.{next(_IPS)}"
     responses = []
@@ -170,6 +171,7 @@ def test_usage_call_refusal_is_answered_with_cors_headers(
     response = guard(request)
 
     assert response.status_code == 429
+    assert isinstance(response, HttpResponse)
     assert response.content == b"slow down"
     assert response["Access-Control-Allow-Origin"] == "https://example.com"
     usage.assert_called_once()

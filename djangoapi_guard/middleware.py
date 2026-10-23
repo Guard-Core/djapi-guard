@@ -13,6 +13,7 @@ from django.contrib.staticfiles import finders
 from django.contrib.staticfiles.views import serve as staticfiles_serve
 from django.core.exceptions import ImproperlyConfigured, SuspiciousFileOperation
 from django.http import HttpRequest, HttpResponse
+from django.http.response import HttpResponseBase
 from django.utils._os import safe_join
 from django.utils.cache import patch_vary_headers
 from django.views.static import serve as static_serve
@@ -95,7 +96,7 @@ def _urlconf_prefixes(patterns: Any, base: str) -> list[str]:
 class DjangoAPIGuard:
     def __init__(
         self,
-        get_response: Callable[[HttpRequest], HttpResponse],
+        get_response: Callable[[HttpRequest], HttpResponseBase],
     ) -> None:
         self.get_response = get_response
 
@@ -353,7 +354,9 @@ class DjangoAPIGuard:
 
         return tuple(_urlconf_prefixes(get_resolver().url_patterns, ""))
 
-    def _ensure_handlers_initialized(self, request: HttpRequest) -> HttpResponse | None:
+    def _ensure_handlers_initialized(
+        self, request: HttpRequest
+    ) -> HttpResponseBase | None:
         if self._handlers_initialized:
             return None
         adopted = resolve_decorator() if self.guard_decorator is None else None
@@ -374,7 +377,7 @@ class DjangoAPIGuard:
         request: HttpRequest,
         guard_request: DjangoGuardRequest,
         request_headers: dict[str, str],
-    ) -> HttpResponse | None:
+    ) -> HttpResponseBase | None:
         if self._cors_handler is None:
             return None
         if not is_preflight(request.method or "", request_headers):
@@ -384,7 +387,7 @@ class DjangoAPIGuard:
             return self._attach_cors_headers(blocking, request)
         return self._build_preflight_response(request_headers)
 
-    def __call__(self, request: HttpRequest) -> HttpResponse:
+    def __call__(self, request: HttpRequest) -> HttpResponseBase:
         early_response = self._ensure_handlers_initialized(request)
         if early_response is not None:
             return early_response
@@ -442,7 +445,7 @@ class DjangoAPIGuard:
 
     def _execute_security_pipeline(
         self, guard_request: DjangoGuardRequest
-    ) -> HttpResponse | None:
+    ) -> HttpResponseBase | None:
         if self.security_pipeline:
             result = self.security_pipeline.execute(guard_request)
             if result is not None:
@@ -454,7 +457,7 @@ class DjangoAPIGuard:
         guard_request: DjangoGuardRequest,
         client_ip: str,
         route_config: RouteConfig | None,
-    ) -> HttpResponse | None:
+    ) -> HttpResponseBase | None:
         if self.behavioral_processor is None:
             raise RuntimeError("behavioral_processor not initialized")
         has_route_rules = route_config is not None and bool(route_config.behavior_rules)
@@ -467,7 +470,7 @@ class DjangoAPIGuard:
 
     def _build_preflight_response(
         self, request_headers: dict[str, str]
-    ) -> HttpResponse:
+    ) -> HttpResponseBase:
         assert self._cors_handler is not None
         preflight = self._cors_handler.build_preflight_response(request_headers)
         response = HttpResponse(preflight.body, status=preflight.status_code)
@@ -476,8 +479,8 @@ class DjangoAPIGuard:
         return response
 
     def _attach_cors_headers(
-        self, response: HttpResponse, request: HttpRequest
-    ) -> HttpResponse:
+        self, response: HttpResponseBase, request: HttpRequest
+    ) -> HttpResponseBase:
         if self._cors_handler is None:
             return response
         cors_headers = self._cors_handler.build_response_headers(dict(request.headers))
@@ -490,7 +493,7 @@ class DjangoAPIGuard:
                 response[key] = value
         return response
 
-    def _redis_unavailable_response(self) -> HttpResponse:
+    def _redis_unavailable_response(self) -> HttpResponseBase:
         guard_response = self.create_error_response(
             503, "Service temporarily unavailable"
         )
@@ -500,9 +503,9 @@ class DjangoAPIGuard:
     def _finalize_response(
         self,
         request: HttpRequest,
-        response: HttpResponse,
+        response: HttpResponseBase,
         route_config: RouteConfig | None,
-    ) -> HttpResponse:
+    ) -> HttpResponseBase:
         if self.response_factory is None:
             raise RuntimeError("response_factory not initialized")
         if self.behavioral_processor is None:
@@ -654,10 +657,10 @@ class DjangoAPIGuard:
     def _process_response(
         self,
         request: HttpRequest,
-        response: HttpResponse,
+        response: HttpResponseBase,
         response_time: float,
         route_config: RouteConfig | None,
-    ) -> HttpResponse:
+    ) -> HttpResponseBase:
         if self.response_factory is None:
             raise RuntimeError("response_factory not initialized")
         if self.behavioral_processor is None:
@@ -678,7 +681,7 @@ class DjangoAPIGuard:
 
     def _process_decorator_usage_rules(
         self, request: HttpRequest, client_ip: str, route_config: RouteConfig
-    ) -> HttpResponse | None:
+    ) -> HttpResponseBase | None:
         if self.behavioral_processor is None:
             raise RuntimeError("behavioral_processor not initialized")
         guard_request = DjangoGuardRequest(request)
@@ -690,7 +693,7 @@ class DjangoAPIGuard:
     def _process_decorator_return_rules(
         self,
         request: HttpRequest,
-        response: HttpResponse,
+        response: HttpResponseBase,
         client_ip: str,
         route_config: RouteConfig,
     ) -> None:

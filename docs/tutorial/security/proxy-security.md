@@ -65,3 +65,13 @@ Best Practices
 2. **Use correct depth**: Configure based on your actual proxy chain
 3. **Regular audits**: Periodically review your trusted proxy list
 4. **Test configuration**: Verify correct IP extraction in your environment
+
+___
+
+Prerequisite: ASGI Servers Must Not Pre-Resolve the Client
+----------------------------------------------------------
+
+DjangoAPI Guard reads the connecting IP from `request.META["REMOTE_ADDR"]`. Django itself never rewrites it from `X-Forwarded-For`, and neither does Gunicorn, so a WSGI deployment needs no change. Under ASGI, Django fills `REMOTE_ADDR` from `scope["client"]`, and uvicorn's `ProxyHeadersMiddleware` rewrites `scope["client"]` from `X-Forwarded-For` before Django runs, for every peer that matches `--forwarded-allow-ips` (default `127.0.0.1,::1`).
+
+!!! warning "`--forwarded-allow-ips='*'` lets a client choose its own identity"
+    With `--forwarded-allow-ips='*'` (or `FORWARDED_ALLOW_IPS=*`) under uvicorn, a client that reaches the server directly sends a different `X-Forwarded-For` on each request and DjangoAPI Guard sees a new connecting IP every time, so rate limits and bans stop working. Pass `--no-proxy-headers` and let `trusted_proxies` resolve the client, or list in `--forwarded-allow-ips` exactly the addresses you list in `trusted_proxies` and never `*`.

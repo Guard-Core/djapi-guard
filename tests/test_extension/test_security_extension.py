@@ -17,7 +17,7 @@ from guard_core.protocols.request_protocol import GuardRequest
 from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync.handlers.cloud_handler import cloud_handler
 from guard_core.sync.handlers.ipban_handler import ip_ban_manager
-from guard_core.sync.handlers.ratelimit_handler import RateLimitManager
+from guard_core.sync.handlers.ratelimit_handler import _managers, _managers_lock
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard.middleware import DjangoAPIGuard
@@ -47,9 +47,11 @@ def _make_middleware(
 
 @pytest.fixture(autouse=True)
 def reset_rate_limiter() -> Generator[None, None, None]:
-    RateLimitManager._instance = None
+    with _managers_lock:
+        _managers.clear()
     yield
-    RateLimitManager._instance = None
+    with _managers_lock:
+        _managers.clear()
 
 
 def test_rate_limiting() -> None:
@@ -110,7 +112,7 @@ def test_ip_whitelist() -> None:
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
-        whitelist=["127.0.0.1"],
+        whitelist=("127.0.0.1",),
     )
     middleware = _make_middleware(config)
     factory = RequestFactory()
@@ -127,7 +129,7 @@ def test_ip_blacklist() -> None:
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
-        blacklist=["192.168.1.100"],
+        blacklist=("192.168.1.100",),
     )
     middleware = _make_middleware(config)
     factory = RequestFactory()
@@ -177,7 +179,7 @@ def test_custom_error_responses() -> None:
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
-        blacklist=["10.0.0.1"],
+        blacklist=("10.0.0.1",),
         custom_error_responses={403: "Custom Forbidden"},
     )
     middleware = _make_middleware(config)
@@ -196,7 +198,7 @@ def test_passive_mode() -> None:
         enable_agent=False,
         enable_penetration_detection=False,
         passive_mode=True,
-        blacklist=["10.0.0.1"],
+        blacklist=("10.0.0.1",),
     )
     middleware = _make_middleware(config)
     factory = RequestFactory()
@@ -396,7 +398,7 @@ def test_cidr_blacklist_blocking() -> None:
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
-        blacklist=["10.0.0.0/24"],
+        blacklist=("10.0.0.0/24",),
     )
     middleware = _make_middleware(config)
     factory = RequestFactory()
@@ -413,7 +415,7 @@ def test_cidr_whitelist_allows() -> None:
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
-        whitelist=["10.0.0.0/24"],
+        whitelist=("10.0.0.0/24",),
     )
     middleware = _make_middleware(config)
     factory = RequestFactory()
@@ -520,7 +522,7 @@ def test_refresh_cloud_ip_ranges() -> None:
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
-        block_cloud_providers={"AWS"},
+        block_cloud_providers=frozenset({"AWS"}),
     )
     middleware = _make_middleware(config)
 

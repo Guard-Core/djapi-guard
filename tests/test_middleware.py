@@ -16,7 +16,8 @@ from guard_core.sync.decorators.base import BaseSecurityDecorator
 from guard_core.sync.detection_result import DetectionResult
 from guard_core.sync.handlers.cloud_handler import cloud_handler
 from guard_core.sync.handlers.ratelimit_handler import (
-    RateLimitManager,
+    _managers,
+    _managers_lock,
     rate_limit_handler,
 )
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
@@ -91,7 +92,7 @@ class TestDjangoAPIGuard:
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
-            blacklist=["192.168.1.100"],
+            blacklist=("192.168.1.100",),
         )
         middleware = self._make_middleware(config)
         factory = RequestFactory()
@@ -105,7 +106,7 @@ class TestDjangoAPIGuard:
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
-            whitelist=["10.0.0.1"],
+            whitelist=("10.0.0.1",),
         )
         middleware = self._make_middleware(config)
         factory = RequestFactory()
@@ -118,10 +119,10 @@ class TestDjangoAPIGuard:
         config = SecurityConfig(
             enable_redis=False,
             enable_agent=False,
-            whitelist=["127.0.0.1"],
-            blacklist=["192.168.1.1"],
+            whitelist=("127.0.0.1",),
+            blacklist=("192.168.1.1",),
             enable_penetration_detection=False,
-            trusted_proxies=["127.0.0.1"],
+            trusted_proxies=("127.0.0.1",),
         )
         middleware = self._make_middleware(config)
         factory = RequestFactory()
@@ -203,8 +204,8 @@ class TestDjangoAPIGuard:
             rate_limit=2,
             rate_limit_window=60,
             enable_rate_limiting=True,
-            whitelist=[],
-            blacklist=[],
+            whitelist=(),
+            blacklist=(),
             enable_penetration_detection=False,
         )
         middleware = self._make_middleware(config)
@@ -351,7 +352,7 @@ class TestDjangoAPIGuard:
             enable_agent=False,
             enable_penetration_detection=False,
             passive_mode=True,
-            blacklist=["192.168.1.100"],
+            blacklist=("192.168.1.100",),
         )
         middleware = self._make_middleware(config)
         factory = RequestFactory()
@@ -383,7 +384,7 @@ class TestDjangoAPIGuard:
             enable_redis=False,
             enable_agent=False,
             passive_mode=True,
-            whitelist=[],
+            whitelist=(),
         )
         middleware = self._make_middleware(config)
         factory = RequestFactory()
@@ -499,11 +500,11 @@ class TestDjangoAPIGuard:
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
-            blacklist=["192.168.1.5"],
+            blacklist=("192.168.1.5",),
             custom_response_modifier=cast(
                 Callable[[GuardResponse], Awaitable[GuardResponse]], custom_modifier
             ),
-            trusted_proxies=["127.0.0.1"],
+            trusted_proxies=("127.0.0.1",),
         )
         middleware = self._make_middleware(config)
         factory = RequestFactory()
@@ -572,7 +573,7 @@ class TestDjangoAPIGuard:
         config = SecurityConfig(
             enable_redis=False,
             enable_agent=False,
-            blacklist=["192.168.1.3"],
+            blacklist=("192.168.1.3",),
             custom_error_responses={
                 403: "Custom Forbidden",
                 429: "Custom Too Many Requests",
@@ -665,7 +666,7 @@ class TestDjangoAPIGuard:
             enable_redis=False,
             enable_agent=False,
             enable_penetration_detection=False,
-            block_cloud_providers={"AWS", "GCP", "Azure"},
+            block_cloud_providers=frozenset({"AWS", "GCP", "Azure"}),
         )
         middleware = self._make_middleware(config)
         factory = RequestFactory()
@@ -784,7 +785,7 @@ class TestDjangoAPIGuard:
             enable_redis=True,
             enable_agent=False,
             redis_url=REDIS_URL,
-            block_cloud_providers={"AWS"},
+            block_cloud_providers=frozenset({"AWS"}),
         )
         with (
             patch(
@@ -972,10 +973,10 @@ class TestDjangoAPIGuard:
         config = SecurityConfig(
             enable_redis=False,
             enable_agent=False,
-            whitelist=["::1", "2001:db8::1"],
-            blacklist=["2001:db8::dead:beef"],
+            whitelist=("::1", "2001:db8::1"),
+            blacklist=("2001:db8::dead:beef",),
             enable_penetration_detection=False,
-            trusted_proxies=["127.0.0.1", "::1"],
+            trusted_proxies=("127.0.0.1", "::1"),
         )
         middleware = self._make_middleware(config)
         factory = RequestFactory()
@@ -1008,10 +1009,10 @@ class TestDjangoAPIGuard:
         config = SecurityConfig(
             enable_redis=False,
             enable_agent=False,
-            whitelist=["2001:db8::/32"],
-            blacklist=["2001:db8:dead::/48"],
+            whitelist=("2001:db8::/32",),
+            blacklist=("2001:db8:dead::/48",),
             enable_penetration_detection=False,
-            trusted_proxies=["127.0.0.1", "::1"],
+            trusted_proxies=("127.0.0.1", "::1"),
         )
         middleware = self._make_middleware(config)
         factory = RequestFactory()
@@ -1045,10 +1046,10 @@ class TestDjangoAPIGuard:
         config = SecurityConfig(
             enable_redis=False,
             enable_agent=False,
-            whitelist=["127.0.0.1", "::1", "192.168.1.0/24", "2001:db8::/32"],
-            blacklist=["192.168.1.100", "2001:db8:dead::beef"],
+            whitelist=("127.0.0.1", "::1", "192.168.1.0/24", "2001:db8::/32"),
+            blacklist=("192.168.1.100", "2001:db8:dead::beef"),
             enable_penetration_detection=False,
-            trusted_proxies=["127.0.0.1", "::1"],
+            trusted_proxies=("127.0.0.1", "::1"),
         )
         middleware = self._make_middleware(config)
         factory = RequestFactory()
@@ -1098,9 +1099,9 @@ class TestDjangoAPIGuard:
             rate_limit=2,
             rate_limit_window=60,
             enable_rate_limiting=True,
-            whitelist=[],
+            whitelist=(),
             enable_penetration_detection=False,
-            trusted_proxies=["127.0.0.1"],
+            trusted_proxies=("127.0.0.1",),
         )
         middleware = self._make_middleware(config)
         factory = RequestFactory()
@@ -1349,7 +1350,8 @@ class TestDjangoAPIGuard:
             enable_rate_limiting=True,
         )
 
-        RateLimitManager._instance = None
+        with _managers_lock:
+            _managers.clear()
         handler = rate_limit_handler(config)
 
         mock_redis: Any = Mock()
@@ -1441,7 +1443,7 @@ class TestDjangoAPIGuardCoverage:
         config = SecurityConfig(
             enable_redis=False,
             enable_penetration_detection=False,
-            blocked_countries=["CN"],
+            blocked_countries=frozenset({"CN"}),
             geo_ip_handler=cast(GeoIPHandler, handler),
         )
         middleware = self._make_middleware(config)
@@ -1750,7 +1752,7 @@ class TestDjangoAPIGuardCoverage:
         config = SecurityConfig(
             enable_redis=False,
             enable_penetration_detection=False,
-            block_cloud_providers={"AWS"},
+            block_cloud_providers=frozenset({"AWS"}),
         )
         middleware = self._make_middleware(config)
         middleware.last_cloud_ip_refresh = 0

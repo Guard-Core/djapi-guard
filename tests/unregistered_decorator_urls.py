@@ -1,9 +1,12 @@
 from django.conf import settings
 from django.http import HttpRequest, JsonResponse
 from django.urls import path
+from guard_core.models import SecurityConfig
 from guard_core.sync.decorators import SecurityDecorator
 
-guard_deco = SecurityDecorator(settings.GUARD_SECURITY_CONFIG)
+guard_security_config = getattr(settings, "GUARD_SECURITY_CONFIG", None)
+assert isinstance(guard_security_config, SecurityConfig)
+guard_deco = SecurityDecorator(guard_security_config)
 
 
 @guard_deco.rate_limit(requests=1, window=60)

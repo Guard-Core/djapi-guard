@@ -5,13 +5,13 @@ handler and response factory. The metrics collector is spied on (it still runs)
 to prove which responses reach the engine response pass.
 """
 
-from collections.abc import Iterator
-from typing import Any
+from collections.abc import Callable, Iterator
+from typing import Any, cast
 
 import pytest
 from django.core.exceptions import ImproperlyConfigured
 from django.core.handlers.base import BaseHandler
-from django.http import HttpResponse
+from django.http import HttpRequest, HttpResponse
 from django.test import RequestFactory, override_settings
 from guard_core.models import SecurityConfig
 from guard_core.protocols.response_protocol import GuardResponse
@@ -45,7 +45,9 @@ def _build(**overrides: Any) -> tuple[DjangoAPIGuard, list[str]]:
     handler = BaseHandler()
     handler.load_middleware()
     with override_settings(GUARD_SECURITY_CONFIG=SecurityConfig(**base)):
-        guard = DjangoAPIGuard(handler.get_response)
+        guard = DjangoAPIGuard(
+            cast(Callable[[HttpRequest], HttpResponse], handler.get_response)
+        )
     guard.set_decorator_handler(engine_parity_urls.security)
     metrics: list[str] = []
     assert guard.metrics_collector is not None
@@ -75,7 +77,7 @@ def test_missing_security_config_is_rejected() -> None:
         from django.conf import settings
 
         if hasattr(settings, "GUARD_SECURITY_CONFIG"):
-            del settings.GUARD_SECURITY_CONFIG
+            delattr(settings, "GUARD_SECURITY_CONFIG")
         with pytest.raises(ImproperlyConfigured, match="GUARD_SECURITY_CONFIG"):
             DjangoAPIGuard(lambda request: HttpResponse("ok"))
 

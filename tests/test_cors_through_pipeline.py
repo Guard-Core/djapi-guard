@@ -18,7 +18,7 @@ def _make_middleware(blacklist: list[str] | None = None) -> DjangoAPIGuard:
         enable_redis=False,
         enable_agent=False,
         enable_penetration_detection=False,
-        blacklist=blacklist or [],
+        blacklist=tuple(blacklist or ()),
     )
     django.conf.settings.GUARD_SECURITY_CONFIG = config
 

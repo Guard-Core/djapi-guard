@@ -23,7 +23,7 @@ def security_config() -> SecurityConfig:
     return SecurityConfig(
         enable_redis=False,
         enable_agent=False,
-        trusted_proxies=["127.0.0.1"],
+        trusted_proxies=("127.0.0.1",),
         enable_penetration_detection=False,
     )
 
@@ -188,7 +188,7 @@ def test_referrer_passive_mode_config() -> None:
         enable_redis=False,
         enable_agent=False,
         passive_mode=True,
-        trusted_proxies=["127.0.0.1"],
+        trusted_proxies=("127.0.0.1",),
     )
     decorator = SecurityDecorator(security_config)
 

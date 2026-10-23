@@ -10,7 +10,7 @@ BLOCKED_IP = "203.0.113.10"
 
 def _config(**overrides: object) -> SecurityConfig:
     return SecurityConfig(
-        blacklist=[BLOCKED_IP],
+        blacklist=(BLOCKED_IP,),
         enable_rate_limiting=False,
         enable_redis=False,
         enable_agent=False,

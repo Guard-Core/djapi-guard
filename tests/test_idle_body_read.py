@@ -8,7 +8,7 @@ from typing import Any
 from wsgiref.simple_server import WSGIRequestHandler, WSGIServer, make_server
 
 import pytest
-from django.core.handlers.wsgi import WSGIHandler
+from django.core.handlers.wsgi import WSGIHandler, WSGIRequest
 from django.http import HttpResponse
 from django.test import RequestFactory, override_settings
 from guard_core.exceptions import BodyReadStalledError
@@ -52,13 +52,14 @@ def _post(body: bytes, **extra: Any) -> Any:
 
 
 def _streamed(stream: Any, length: int, **extra: Any) -> Any:
-    request = RequestFactory().generic(
-        "POST", "/echo", data=b"", content_type="text/plain", **extra
+    environ = (
+        RequestFactory()
+        .generic("POST", "/echo", data=b"", content_type="text/plain", **extra)
+        .environ
     )
-    request.META["CONTENT_LENGTH"] = str(length)
-    request.META["wsgi.input"] = stream
-    request._stream = type(request._stream)(stream, length)
-    return request
+    environ["CONTENT_LENGTH"] = str(length)
+    environ["wsgi.input"] = stream
+    return WSGIRequest(environ)
 
 
 def test_the_idle_read_returns_the_prefix_and_the_app_still_reads_everything() -> None:

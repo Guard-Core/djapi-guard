@@ -6,7 +6,7 @@ import django
 
 django.setup()
 
-from typing import Any
+from typing import Any, cast
 
 from django.http import HttpResponse
 from django.test import RequestFactory
@@ -115,7 +115,7 @@ def test_django_guard_response_read_body_prefix_streaming() -> None:
         yield b"chunk"
 
     response = StreamingHttpResponse(gen(), status=200)
-    guard_response = DjangoGuardResponse(response)
+    guard_response = DjangoGuardResponse(cast(HttpResponse, response))
     assert guard_response.read_body_prefix(10) == b""
 
 

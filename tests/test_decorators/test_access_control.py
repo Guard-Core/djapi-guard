@@ -20,7 +20,7 @@ def security_config() -> SecurityConfig:
     return SecurityConfig(
         enable_redis=False,
         enable_agent=False,
-        trusted_proxies=["127.0.0.1"],
+        trusted_proxies=("127.0.0.1",),
         enable_penetration_detection=False,
     )
 

@@ -25,7 +25,7 @@ from guard_core.sync.protocols.response_protocol import GuardResponse
 from djangoapi_guard._decorator_adoption import SecurityDecorator
 from djangoapi_guard.middleware import DjangoAPIGuard
 
-register_adapter("djapi-guard", "sync")
+register_adapter("djapi-guard")
 
 if TYPE_CHECKING:
     from guard_core.sync.handlers.cloud_handler import CloudManager, cloud_handler

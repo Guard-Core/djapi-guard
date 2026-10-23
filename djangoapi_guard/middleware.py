@@ -202,6 +202,7 @@ class DjangoAPIGuard:
             geo_ip_handler=self.geo_ip_handler,
             rate_limit_handler=self.rate_limit_handler,
             guard_decorator=self.guard_decorator,
+            adapter="djapi-guard",
         )
 
     def _init_route_resolver(self) -> None:

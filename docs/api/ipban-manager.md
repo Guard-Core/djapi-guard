@@ -16,8 +16,17 @@ Methods
 -------
 
 ```python
-def ban_ip(ip: str, duration: int) -> None:
-    """Ban an IP address for a specified duration."""
+def ban_ip(
+    ip: str,
+    duration: int,
+    reason: str = "threshold_exceeded",
+    *,
+    grouped: bool = False,
+) -> bool:
+    """Ban an IP address for a specified duration. Returns True if the ban was applied, False if it was refused.
+
+    `grouped` bans `ip` as a group identity, such as the IPv6 prefix `2001:db8::/64`, instead of one exact address.
+    """
 
 
 def is_ip_banned(ip: str) -> bool:
@@ -28,7 +37,7 @@ def reset() -> None:
     """Reset all banned IPs and every auto-ban strike (memory and Redis)."""
 
 
-def unban_ip(ip: str) -> None:
+def unban_ip(ip: str, *, reason: str = "manual_unban") -> None:
     """Unban an IP address and clear its auto-ban strikes."""
 ```
 

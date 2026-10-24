@@ -88,6 +88,8 @@ def test_finalize_response_matches_inline_implementation(enable_cors: bool) -> N
         None,
     )
 
+    assert isinstance(actual, HttpResponse)
+    assert isinstance(expected, HttpResponse)
     assert actual.status_code == expected.status_code == 201
     assert actual.content == expected.content == b"ok"
     assert dict(actual.headers) == dict(expected.headers)

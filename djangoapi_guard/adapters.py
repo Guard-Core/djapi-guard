@@ -45,6 +45,9 @@ class _ReplayStream:
         while line := self.readline():
             yield line
 
+    def seekable(self) -> bool:
+        return False
+
     def close(self) -> None:
         self._prefix.close()
         close = getattr(self._rest, "close", None)

@@ -18,7 +18,7 @@ jobs:
             To help us triage quickly, please make sure your report includes:
             - A clear reproduction (a short Django project or failing test is ideal)
             - Output of `python --version && uv --version`
-            - The Python version range supported (`>=3.10,<3.15`) and which version you're on
+            - The Python version range supported (`>=3.10,<3.16`) and which version you're on
             - `pip show django guard-core djangoapi-guard` (or equivalent) so we can see installed versions
             - Operating system, deployment target (gunicorn / uwsgi / asgi via daphne or uvicorn), and Redis configuration if relevant
             - Logs / tracebacks / Django middleware ordering and `MIDDLEWARE` setting

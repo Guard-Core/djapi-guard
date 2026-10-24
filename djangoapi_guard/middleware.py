@@ -507,27 +507,12 @@ class DjangoAPIGuard:
         response: HttpResponseBase,
         route_config: RouteConfig | None,
     ) -> HttpResponseBase:
-        if self.response_factory is None:
-            raise RuntimeError("response_factory not initialized")
-        if self.behavioral_processor is None:
-            raise RuntimeError("behavioral_processor not initialized")
-
         start_time = getattr(request, "_guard_request_start_time", time.time())
         response_time = time.time() - start_time
-
-        guard_request = DjangoGuardRequest(request)
-        guard_response = DjangoGuardResponse(response)
-        result = self.response_factory.process_response(
-            guard_request,
-            guard_response,
-            response_time,
-            route_config,
-            process_behavioral_rules=self.behavioral_processor.process_return_rules,
-            process_global_behavioral_rules=(
-                self.behavioral_processor.process_global_return_rules
-            ),
+        processed = self._process_response(
+            request, response, response_time, route_config
         )
-        return self._attach_cors_headers(unwrap_response(result), request)
+        return self._attach_cors_headers(processed, request)
 
     def _initialize_handlers(self) -> None:
         if self.handler_initializer is None:

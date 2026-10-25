@@ -13,12 +13,14 @@ from guard_core.models import SecurityConfig
 from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync.decorators.base import BaseSecurityDecorator
 from guard_core.sync.detection_result import DetectionResult
-from guard_core.sync.handlers.cloud_handler import cloud_handler
+from guard_core.sync.handlers.cloud_handler import cloud_handler_for
+from guard_core.sync.handlers.ipban_handler import ip_ban_manager_for
 from guard_core.sync.handlers.ratelimit_handler import (
     _managers,
     _managers_lock,
     rate_limit_handler,
 )
+from guard_core.sync.handlers.suspatterns_handler import sus_patterns_manager_for
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard import SecurityDecorator
@@ -662,16 +664,17 @@ class TestDjangoAPIGuard:
             enable_penetration_detection=False,
             block_cloud_providers=frozenset({"AWS", "GCP", "Azure"}),
         )
+        cloud_handler_for(config, bind=True)
         middleware = self._make_middleware(config)
         factory = RequestFactory()
 
-        with patch.object(cloud_handler, "is_cloud_ip", return_value=True):
+        with patch.object(cloud_handler_for(config), "is_cloud_ip", return_value=True):
             request = factory.get("/")
             request.META["REMOTE_ADDR"] = "13.59.255.255"
             response = middleware(request)
             assert response.status_code == 403
 
-        with patch.object(cloud_handler, "is_cloud_ip", return_value=False):
+        with patch.object(cloud_handler_for(config), "is_cloud_ip", return_value=False):
             request = factory.get("/")
             request.META["REMOTE_ADDR"] = "8.8.8.8"
             response = middleware(request)
@@ -785,14 +788,14 @@ class TestDjangoAPIGuard:
             patch(
                 "guard_core.sync.handlers.redis_handler.RedisManager.initialize"
             ) as redis_init,
-            patch(
-                "guard_core.sync.handlers.cloud_handler.cloud_handler.initialize_redis"
+            patch.object(
+                cloud_handler_for(config, bind=True), "initialize_redis"
             ) as cloud_init,
-            patch(
-                "guard_core.sync.handlers.ipban_handler.ip_ban_manager.initialize_redis"
+            patch.object(
+                ip_ban_manager_for(config, bind=True), "initialize_redis"
             ) as ipban_init,
-            patch(
-                "guard_core.sync.handlers.suspatterns_handler.sus_patterns_handler.initialize_redis"
+            patch.object(
+                sus_patterns_manager_for(config, bind=True), "initialize_redis"
             ) as sus_init,
             patch(
                 "guard_core.sync.handlers.ratelimit_handler.RateLimitManager.initialize_redis"
@@ -817,14 +820,14 @@ class TestDjangoAPIGuard:
             patch(
                 "guard_core.sync.handlers.redis_handler.RedisManager.initialize"
             ) as redis_init,
-            patch(
-                "guard_core.sync.handlers.cloud_handler.cloud_handler.initialize_redis"
+            patch.object(
+                cloud_handler_for(config, bind=True), "initialize_redis"
             ) as cloud_init,
-            patch(
-                "guard_core.sync.handlers.ipban_handler.ip_ban_manager.initialize_redis"
+            patch.object(
+                ip_ban_manager_for(config, bind=True), "initialize_redis"
             ) as ipban_init,
-            patch(
-                "guard_core.sync.handlers.suspatterns_handler.sus_patterns_handler.initialize_redis"
+            patch.object(
+                sus_patterns_manager_for(config, bind=True), "initialize_redis"
             ) as sus_init,
             patch(
                 "guard_core.sync.handlers.ratelimit_handler.RateLimitManager.initialize_redis"
@@ -1758,7 +1761,7 @@ class TestDjangoAPIGuardCoverage:
         )
         middleware = self._make_middleware(config)
         middleware.last_cloud_ip_refresh = 0
-        with patch.object(cloud_handler, "refresh_async"):
+        with patch.object(cloud_handler_for(config), "refresh_async"):
             middleware.refresh_cloud_ip_ranges()
         assert middleware.last_cloud_ip_refresh > 0
 

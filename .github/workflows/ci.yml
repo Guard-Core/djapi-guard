@@ -74,6 +74,7 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run ruff check .
       - run: uv run mypy .
+      - run: uv run mypy examples/simple/manage.py
       - run: uv run pre-commit run --all-files
 
   test:

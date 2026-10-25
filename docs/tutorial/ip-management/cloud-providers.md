@@ -45,9 +45,13 @@ GUARD_SECURITY_CONFIG = SecurityConfig(
 You can also manually trigger a refresh:
 
 ```python
-from djangoapi_guard import cloud_handler
+from guard_core.sync.handlers.cloud_handler import cloud_handler_for
 
-cloud_handler.refresh()
+# The module-level objects are the default app's. Take the ones of the app
+# you act on with the config that app was built with.
+clouds = cloud_handler_for(config)
+
+clouds.refresh()
 ```
 
 ___
@@ -56,10 +60,14 @@ Provider Status
 ---------------
 
 ```python
-from djangoapi_guard import cloud_handler
+from guard_core.sync.handlers.cloud_handler import cloud_handler_for
+
+# The module-level objects are the default app's. Take the ones of the app
+# you act on with the config that app was built with.
+clouds = cloud_handler_for(config)
 
 for provider in ("AWS", "GCP", "Azure"):
-    updated = cloud_handler.last_updated[provider]
+    updated = clouds.last_updated[provider]
     if updated:
         print(f"{provider}: last updated {updated.isoformat()}")
 ```
@@ -70,11 +78,15 @@ Custom IP Checking
 -------------------
 
 ```python
-from djangoapi_guard import cloud_handler
+from guard_core.sync.handlers.cloud_handler import cloud_handler_for
+
+# The module-level objects are the default app's. Take the ones of the app
+# you act on with the config that app was built with.
+clouds = cloud_handler_for(config)
 from django.http import JsonResponse
 
 
 def check_cloud_ip(request, ip):
-    is_cloud = cloud_handler.is_cloud_ip(ip, providers={"AWS", "GCP", "Azure"})
+    is_cloud = clouds.is_cloud_ip(ip, providers={"AWS", "GCP", "Azure"})
     return JsonResponse({"ip": ip, "is_cloud": is_cloud})
 ```

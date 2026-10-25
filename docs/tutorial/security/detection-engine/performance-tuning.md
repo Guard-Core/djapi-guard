@@ -3,9 +3,13 @@
 ## Performance Metrics
 
 ```python
-from djangoapi_guard import sus_patterns_handler
+from guard_core.sync.handlers.suspatterns_handler import sus_patterns_manager_for
 
-stats = sus_patterns_handler.get_performance_stats()
+# The module-level objects are the default app's. Take the ones of the app
+# you act on with the config that app was built with.
+patterns = sus_patterns_manager_for(config)
+
+stats = patterns.get_performance_stats()
 print(f"Average execution time: {stats['summary']['average_time']}s")
 print(f"Timeout rate: {stats['summary']['timeout_rate'] * 100}%")
 print(f"Slow patterns: {len(stats['slow_patterns'])}")

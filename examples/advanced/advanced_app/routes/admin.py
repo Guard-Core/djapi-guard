@@ -6,10 +6,10 @@ from django.http import HttpRequest, JsonResponse
 from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
+from guard_core.sync.handlers.cloud_handler import cloud_handler_for
 
 from advanced_app.models import message_response, stats_response
 from advanced_app.security import guard
-from djangoapi_guard import cloud_handler
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +116,8 @@ def cloud_status(request: HttpRequest) -> JsonResponse:
     from advanced_app.security import security_config
 
     last_updated = {}
-    for provider, dt in cloud_handler.last_updated.items():
+    # `cloud_handler` is the default app's; this app's own manager:
+    for provider, dt in cloud_handler_for(security_config).last_updated.items():
         last_updated[provider] = dt.isoformat() if dt else None
     return JsonResponse(
         message_response(

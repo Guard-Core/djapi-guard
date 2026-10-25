@@ -8,14 +8,14 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 from example_project.settings import GUARD_SECURITY_CONFIG
 from guard_core.protocols.response_protocol import GuardResponse
+from guard_core.sync.handlers.cloud_handler import cloud_handler_for
+from guard_core.sync.handlers.ipban_handler import ip_ban_manager_for
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard import (
     BehaviorRule,
     SecurityConfig,
     SecurityDecorator,
-    cloud_handler,
-    ip_ban_manager,
 )
 from djangoapi_guard.adapters import DjangoGuardResponse
 
@@ -705,7 +705,8 @@ def admin_unban_ip(request: HttpRequest) -> JsonResponse:
     ip_to_unban = data.get("ip")
     if not ip_to_unban:
         return JsonResponse({"detail": "IP address required"}, status=400)
-    ip_ban_manager.unban_ip(ip_to_unban)
+    # `ip_ban_manager` is the default app's; this app's own manager:
+    ip_ban_manager_for(config).unban_ip(ip_to_unban)
     return JsonResponse(
         {
             "message": f"IP {ip_to_unban} has been unbanned",
@@ -767,7 +768,8 @@ def admin_emergency_mode(request: HttpRequest) -> JsonResponse:
 @guard.require_ip(whitelist=["127.0.0.1"])
 def admin_cloud_status(request: HttpRequest) -> JsonResponse:
     last_updated = {}
-    for provider, dt in cloud_handler.last_updated.items():
+    # `cloud_handler` is the default app's; this app's own manager:
+    for provider, dt in cloud_handler_for(config).last_updated.items():
         last_updated[provider] = dt.isoformat() if dt else None
     return JsonResponse(
         {

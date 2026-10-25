@@ -47,16 +47,20 @@ GUARD_SECURITY_CONFIG = SecurityConfig(
 ## Dynamic Configuration
 
 ```python
-from djangoapi_guard import sus_patterns_handler
+from guard_core.sync.handlers.suspatterns_handler import sus_patterns_manager_for
+
+# The module-level objects are the default app's. Take the ones of the app
+# you act on with the config that app was built with.
+patterns = sus_patterns_manager_for(config)
 
 # Adjust semantic threshold dynamically
-sus_patterns_handler.configure_semantic_threshold(0.8)
+patterns.configure_semantic_threshold(0.8)
 
 # Add custom patterns
-sus_patterns_handler.add_pattern(r"(?i)custom_threat_pattern", custom=True)
+patterns.add_pattern(r"(?i)custom_threat_pattern", custom=True)
 
 # Check component status
-status = sus_patterns_handler.get_component_status()
+status = patterns.get_component_status()
 ```
 
 ## Next Steps

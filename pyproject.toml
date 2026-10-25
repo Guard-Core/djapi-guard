@@ -136,6 +136,8 @@ DJANGO_SETTINGS_MODULE = "tests.settings"
 
 [tool.mypy]
 python_version = "3.10"
+explicit_package_bases = true
+mypy_path = "$MYPY_CONFIG_FILE_DIR/examples/advanced:$MYPY_CONFIG_FILE_DIR/examples/simple"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -148,7 +150,7 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
-exclude = ["vulture_whitelist.py", ".venv", "setup.py", "examples"]
+exclude = ["vulture_whitelist.py", ".venv", "setup.py", "examples/simple/manage.py"]
 plugins = ["mypy_django_plugin.main"]
 
 [tool.django-stubs]

@@ -3,10 +3,11 @@ import logging
 from datetime import datetime, timezone
 from ipaddress import ip_address
 
-from django.conf import settings
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
+from example_project.settings import GUARD_SECURITY_CONFIG
+from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard import (
@@ -16,6 +17,7 @@ from djangoapi_guard import (
     cloud_handler,
     ip_ban_manager,
 )
+from djangoapi_guard.adapters import DjangoGuardResponse
 
 logging.basicConfig(
     level=logging.INFO,
@@ -23,7 +25,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-config: SecurityConfig[SyncGuardRequest] = settings.GUARD_SECURITY_CONFIG
+config: SecurityConfig[SyncGuardRequest] = GUARD_SECURITY_CONFIG
 guard = SecurityDecorator(config)
 
 
@@ -601,10 +603,12 @@ def content_referrer_check(request: HttpRequest) -> JsonResponse:
     )
 
 
-def _custom_validator(req: HttpRequest) -> HttpResponse | None:
+def _custom_validator(req: SyncGuardRequest) -> GuardResponse | None:
     user_agent = req.headers.get("user-agent", "").lower()
     if "suspicious-pattern" in user_agent:
-        return JsonResponse({"detail": "Suspicious user agent detected"}, status=403)
+        return DjangoGuardResponse(
+            JsonResponse({"detail": "Suspicious user agent detected"}, status=403)
+        )
     return None
 
 

@@ -1,12 +1,15 @@
 import json
 
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.http import HttpRequest, JsonResponse
 from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
+from guard_core.protocols.response_protocol import GuardResponse
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from advanced_app.models import message_response
 from advanced_app.security import guard
+from djangoapi_guard.adapters import DjangoGuardResponse
 
 
 @require_GET
@@ -57,12 +60,14 @@ def check_referrer(request: HttpRequest) -> JsonResponse:
     )
 
 
-def custom_validator(req: HttpRequest) -> HttpResponse | None:
+def custom_validator(req: SyncGuardRequest) -> GuardResponse | None:
     user_agent = req.headers.get("user-agent", "").lower()
     if "suspicious-pattern" in user_agent:
-        return JsonResponse(
-            {"detail": "Suspicious user agent"},
-            status=403,
+        return DjangoGuardResponse(
+            JsonResponse(
+                {"detail": "Suspicious user agent"},
+                status=403,
+            )
         )
     return None
 

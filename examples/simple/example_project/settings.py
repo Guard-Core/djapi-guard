@@ -1,13 +1,14 @@
 import os
 
 from django.http import JsonResponse
+from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard import SecurityConfig
 from djangoapi_guard.adapters import DjangoGuardResponse
 
 
-def custom_request_check(request) -> DjangoGuardResponse | None:
+def custom_request_check(request: SyncGuardRequest) -> DjangoGuardResponse | None:
     # The check receives the guard's abstract request protocol: query
     # params live on request.query_params, not Django's request.GET.
     # Custom checks must return the guard response type, not a raw
@@ -19,7 +20,7 @@ def custom_request_check(request) -> DjangoGuardResponse | None:
     return None
 
 
-def custom_response_modifier(response):
+def custom_response_modifier(response: GuardResponse) -> GuardResponse:
     # The pipeline passes the guard response wrapper: mutate headers
     # through its MutableMapping, not Django's item assignment.
     response.headers["X-Content-Type-Options"] = "nosniff"
@@ -52,12 +53,12 @@ MIDDLEWARE = [
 ]
 
 GUARD_SECURITY_CONFIG = SecurityConfig[SyncGuardRequest](
-    whitelist=[],
-    blacklist=["192.168.100.0/24"],
-    trusted_proxies=["172.16.0.0/12", "10.0.0.0/8"],
+    whitelist=(),
+    blacklist=("192.168.100.0/24",),
+    trusted_proxies=("172.16.0.0/12", "10.0.0.0/8"),
     trusted_proxy_depth=1,
     trust_x_forwarded_proto=True,
-    block_cloud_providers={"AWS", "GCP", "Azure"},
+    block_cloud_providers=frozenset({"AWS", "GCP", "Azure"}),
     blocked_user_agents=["badbot", "evil-crawler", "sqlmap"],
     enable_rate_limiting=True,
     rate_limit=30,

@@ -80,7 +80,8 @@ def _load_example(
     monkeypatch.setenv("REDIS_URL", REDIS_URL)
     monkeypatch.setenv("REDIS_PREFIX", REDIS_PREFIX)
     monkeypatch.setattr(
-        "guard_core.handlers.ipinfo_handler.IPInfoManager", _CountryStubGeoIPHandler
+        "guard_core.sync.handlers.ipinfo_handler.IPInfoManager",
+        _CountryStubGeoIPHandler,
     )
     monkeypatch.syspath_prepend(str(EXAMPLES / name))
     for loaded in [

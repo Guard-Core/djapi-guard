@@ -156,9 +156,7 @@ class DjangoAPIGuard:
         return {"enabled": True, **handler_stats}
 
     def _init_geo_ip_handler(self) -> None:
-        self.geo_ip_handler = None
-        if self.config.whitelist_countries or self.config.blocked_countries:
-            self.geo_ip_handler = self.config.geo_ip_handler
+        self.geo_ip_handler = self.config.geo_ip_handler
 
     def _init_redis_handler(self) -> None:
         self.redis_handler = None
@@ -204,6 +202,7 @@ class DjangoAPIGuard:
             guard_decorator=self.guard_decorator,
             adapter="djapi-guard",
         )
+        self.geo_ip_handler = self.handler_initializer.geo_ip_handler
 
     def _init_route_resolver(self) -> None:
         routing_context = RoutingContext(
@@ -519,6 +518,7 @@ class DjangoAPIGuard:
             raise RuntimeError("handler_initializer not initialized")
         self.handler_initializer.guard_decorator = self.guard_decorator
         self.handler_initializer.initialize_redis_handlers()
+        self.geo_ip_handler = self.handler_initializer.geo_ip_handler
         self.handler_initializer.initialize_agent_integrations()
 
         if self.handler_initializer.composite_handler is not None:

@@ -6,6 +6,8 @@ ___
 Unreleased
 ----------
 
+- **Fixed** - **Country rules need no global rule.** The middleware keeps `config.geo_ip_handler` whenever one is configured and reads back the handler the sync engine runs with: a handler built from `ipinfo_token` is now the synchronous `IPInfoManager`, so `blocked_countries` blocks (it never did, the engine called the async manager without awaiting it), and a route-level `block_countries`, `allow_countries` or `geo_rate_limit` works without a global country rule. The examples no longer carry a placeholder `blocked_countries`.
+
 - **Fixed** - **Route decorators now work as the README shows.** `DjangoAPIGuard` started with no decorator and Django builds the middleware, so a view decorated with `SecurityDecorator` had every decorator-only check (route rate limits, IP and country rules, size and content-type limits, behavior rules) silently off unless code reached the middleware instance. The middleware now adopts the `djangoapi_guard.SecurityDecorator` the project built on its first request. Projects with several decorators name one in `settings.GUARD_DECORATOR` (instance or dotted path). With several and no setting, the first request raises `ImproperlyConfigured` naming `GUARD_DECORATOR` and the registered decorators. With a decorator that was not built through `djangoapi_guard`, one warning per process names the fix. `set_decorator_handler` is unchanged.
 
 ___

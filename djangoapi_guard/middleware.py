@@ -143,6 +143,7 @@ class DjangoAPIGuard:
         self._init_route_resolver()
         self._build_event_bus_and_contexts()
         self._build_security_pipeline()
+        self._report_route_misconfigurations_at_startup()
 
     @property
     def guard_response_factory(self) -> DjangoResponseFactory:
@@ -354,14 +355,24 @@ class DjangoAPIGuard:
 
         return tuple(_urlconf_prefixes(get_resolver().url_patterns, ""))
 
+    def _adopt_decorator(self) -> None:
+        adopted = resolve_decorator() if self.guard_decorator is None else None
+        if adopted is not None:
+            self.set_decorator_handler(adopted)
+
+    def _report_route_misconfigurations_at_startup(self) -> None:
+        assert self.handler_initializer is not None
+        self._adopt_decorator()
+        self.handler_initializer.guard_decorator = self.guard_decorator
+        self.handler_initializer.report_route_misconfigurations()
+        self.geo_ip_handler = self.handler_initializer.geo_ip_handler
+
     def _ensure_handlers_initialized(
         self, request: HttpRequest
     ) -> HttpResponseBase | None:
         if self._handlers_initialized:
             return None
-        adopted = resolve_decorator() if self.guard_decorator is None else None
-        if adopted is not None:
-            self.set_decorator_handler(adopted)
+        self._adopt_decorator()
         try:
             self._initialize_handlers()
         except GuardRedisError as e:

@@ -23,6 +23,7 @@ def security_config() -> SecurityConfig[SyncGuardRequest]:
         enable_agent=False,
         trusted_proxies=("127.0.0.1",),
         enable_penetration_detection=False,
+        ipinfo_token="test-token",
     )
 
 

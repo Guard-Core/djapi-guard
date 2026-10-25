@@ -228,8 +228,9 @@ def test_time_window_error_handling(
     assert middleware.validator is not None
     with patch.object(middleware.validator.context.logger, "error") as mock_error:
         result = middleware._check_time_window(invalid_time_restrictions)
-        assert result is True
+        assert result is False
         mock_error.assert_called_once()
+        assert "request denied" in mock_error.call_args.args[0]
 
 
 def test_time_window_overnight(

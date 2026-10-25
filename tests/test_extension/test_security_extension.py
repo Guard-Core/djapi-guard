@@ -13,8 +13,8 @@ from django.http import HttpRequest, HttpResponse
 from django.test import RequestFactory
 from guard_core.models import SecurityConfig
 from guard_core.protocols.response_protocol import GuardResponse
-from guard_core.sync.handlers.cloud_handler import cloud_handler
-from guard_core.sync.handlers.ipban_handler import ip_ban_manager
+from guard_core.sync.handlers.cloud_handler import cloud_handler_for
+from guard_core.sync.handlers.ipban_handler import ip_ban_manager_for
 from guard_core.sync.handlers.ratelimit_handler import _managers, _managers_lock
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
@@ -257,10 +257,11 @@ def test_banned_ip() -> None:
         enable_penetration_detection=False,
         enable_ip_banning=True,
     )
+    ip_ban_manager_for(config, bind=True)
     middleware = _make_middleware(config)
     factory = RequestFactory()
 
-    ip_ban_manager.ban_ip("192.168.1.50", 3600)
+    ip_ban_manager_for(config).ban_ip("192.168.1.50", 3600)
 
     request = factory.get("/api/test")
     request.META["REMOTE_ADDR"] = "192.168.1.50"
@@ -520,7 +521,7 @@ def test_refresh_cloud_ip_ranges() -> None:
     )
     middleware = _make_middleware(config)
 
-    with patch.object(cloud_handler, "refresh_async") as mock_refresh:
+    with patch.object(cloud_handler_for(config), "refresh_async") as mock_refresh:
         middleware.refresh_cloud_ip_ranges()
         mock_refresh.assert_called_once()
 

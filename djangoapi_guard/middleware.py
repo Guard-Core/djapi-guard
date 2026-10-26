@@ -3,7 +3,9 @@ import logging
 import os
 import posixpath
 import re
+import threading
 import time
+from collections import OrderedDict
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
@@ -21,6 +23,7 @@ from guard_core.exceptions import GuardRedisError
 from guard_core.models import SecurityConfig
 from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync._utils.app_scope import hold_app_scope, release_app_scope
+from guard_core.sync._utils.sampling import observe_sampled_key
 from guard_core.sync.core.behavioral import BehavioralContext, BehavioralProcessor
 from guard_core.sync.core.bypass import BypassContext, BypassHandler
 from guard_core.sync.core.checks.pipeline import SecurityCheckPipeline
@@ -92,6 +95,22 @@ def _urlconf_prefixes(patterns: Any, base: str) -> list[str]:
             end = "$" if isinstance(entry.pattern, RoutePattern) else ""
             prefixes.append(regex_route_prefix(base + text + end))
     return prefixes
+
+
+_INIT_OUTAGE_SAMPLE_WINDOW_SECONDS = 60
+_INIT_OUTAGE_SAMPLE_KEY = "redis_unavailable_during_initialization"
+_init_outage_lock = threading.Lock()
+_init_outage_samples: OrderedDict[str, float] = OrderedDict()
+
+
+def _sample_init_outage_line() -> bool:
+    return observe_sampled_key(
+        _init_outage_samples,
+        _init_outage_lock,
+        _INIT_OUTAGE_SAMPLE_KEY,
+        window=_INIT_OUTAGE_SAMPLE_WINDOW_SECONDS,
+        max_tracked=1,
+    )
 
 
 class DjangoAPIGuard:
@@ -377,6 +396,14 @@ class DjangoAPIGuard:
         try:
             self._initialize_handlers()
         except GuardRedisError as e:
+            if self.config.passive_mode:
+                if _sample_init_outage_line():
+                    self.logger.error(
+                        "Redis unavailable during initialization: %s "
+                        "(passive_mode=True, request passed through unguarded)",
+                        e,
+                    )
+                return self.get_response(request)
             self.logger.error("Redis unavailable during initialization: %s", e)
             return self._attach_cors_headers(
                 self._redis_unavailable_response(), request

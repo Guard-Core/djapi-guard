@@ -20,6 +20,7 @@ from django.views.static import serve as static_serve
 from guard_core.exceptions import GuardRedisError
 from guard_core.models import SecurityConfig
 from guard_core.protocols.response_protocol import GuardResponse
+from guard_core.sync._utils.app_scope import hold_app_scope, release_app_scope
 from guard_core.sync.core.behavioral import BehavioralContext, BehavioralProcessor
 from guard_core.sync.core.bypass import BypassContext, BypassHandler
 from guard_core.sync.core.checks.pipeline import SecurityCheckPipeline
@@ -404,6 +405,13 @@ class DjangoAPIGuard:
             return early_response
 
         self._assert_initialized()
+        token = hold_app_scope(self.config)
+        try:
+            return self._call_after_init(request)
+        finally:
+            release_app_scope(token)
+
+    def _call_after_init(self, request: HttpRequest) -> HttpResponseBase:
         assert self.bypass_handler is not None
         assert self.route_resolver is not None
 

@@ -28,9 +28,10 @@ GUARD_MIDDLEWARE = [
 class _CountryStubGeoIPHandler:
     def __init__(
         self,
-        token: str | None = None,
+        token: str,
         db_path: Path | None = None,
         max_age: int = 86400,
+        download_url: str | None = None,
     ) -> None:
         self.is_initialized = True
 

@@ -332,7 +332,7 @@ def test_api_key_route_refuses_a_missing_key_and_answers_a_present_one(
     missing_request = RequestFactory().get(path)
     missing_request.META["REMOTE_ADDR"] = "203.0.113.5"
     missing = api_key_guard(missing_request)
-    assert missing.status_code in (400, 401)
+    assert missing.status_code == 401
     assert isinstance(missing, HttpResponse)
     assert handler_message not in missing.content.decode()
 

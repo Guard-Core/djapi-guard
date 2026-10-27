@@ -669,7 +669,7 @@ def test_guard_agent_init_generic_exception() -> None:
         SecurityConfig, "to_agent_config", return_value=mock_agent_config
     ):
         mock_module = MagicMock()
-        mock_module.guard_agent.side_effect = RuntimeError("init failed")
+        mock_module.SyncGuardAgentHandler.side_effect = RuntimeError("init failed")
         with patch.dict("sys.modules", {"guard_agent": mock_module}):
             middleware = _make_middleware(config)
             assert middleware.agent_handler is None

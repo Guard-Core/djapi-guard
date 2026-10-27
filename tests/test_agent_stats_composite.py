@@ -45,7 +45,9 @@ def test_agent_stats_answers_after_the_composite_handler_is_swapped_in(
 ) -> None:
     stub = _StatsAgentStub()
     monkeypatch.setitem(
-        sys.modules, "guard_agent", SimpleNamespace(guard_agent=lambda _cfg: stub)
+        sys.modules,
+        "guard_agent",
+        SimpleNamespace(SyncGuardAgentHandler=lambda _cfg: stub),
     )
     config = SecurityConfig[SyncGuardRequest](
         enable_agent=True,

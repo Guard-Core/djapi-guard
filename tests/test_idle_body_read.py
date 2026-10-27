@@ -311,4 +311,11 @@ def test_closing_the_replayed_stream_closes_the_underlying_stream() -> None:
 def test_closing_a_replayed_stream_whose_source_cannot_close_is_harmless() -> None:
     from djangoapi_guard.adapters import _ReplayStream
 
-    _ReplayStream(b"abc", object()).close()
+    class _NoClose:
+        def read(self, size: int = -1, /) -> bytes:
+            return b""
+
+        def readline(self, size: int = -1, /) -> bytes:
+            return b""
+
+    _ReplayStream(b"abc", _NoClose()).close()

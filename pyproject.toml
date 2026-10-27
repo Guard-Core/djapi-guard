@@ -153,6 +153,20 @@ warn_unreachable = true
 exclude = ["vulture_whitelist.py", ".venv", "setup.py", "examples/simple/manage.py"]
 plugins = ["mypy_django_plugin.main"]
 
+# D-189 Any ratchet: begin (shrink the list, never grow it; tests/test_any_ratchet.py holds the line)
+[[tool.mypy.overrides]]
+module = "djangoapi_guard.*"
+disallow_any_explicit = true
+
+[[tool.mypy.overrides]]
+module = [
+    # agent_handler: SyncGuardAgentHandler.initialize_redis takes guard-agent's async Redis protocol, so it is no SyncAgentHandlerProtocol
+    "djangoapi_guard.middleware",
+]
+disallow_any_explicit = false
+
+# D-189 Any ratchet: end
+
 [tool.django-stubs]
 django_settings_module = "tests.settings"
 

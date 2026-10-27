@@ -14,6 +14,7 @@ from django.http import HttpRequest, HttpResponse
 from django.http.response import HttpResponseBase
 from django.test import RequestFactory
 from guard_core.models import SecurityConfig
+from guard_core.sync.handlers.redis_handler import RedisManager
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 from redis.exceptions import ConnectionError as RedisConnectionError
 
@@ -51,8 +52,9 @@ def _get_after_redis_died(path: str, **overrides: Any) -> HttpResponseBase:
     middleware = DjangoAPIGuard(get_response)
     factory = RequestFactory()
     assert middleware(factory.get("/open")).status_code == 200
-    assert middleware.redis_handler is not None
-    middleware.redis_handler._redis = _DeadRedis()
+    redis_handler = middleware.redis_handler
+    assert isinstance(redis_handler, RedisManager)
+    vars(redis_handler)["_redis"] = _DeadRedis()
     return middleware(factory.get(path))
 
 

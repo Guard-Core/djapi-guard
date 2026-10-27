@@ -853,7 +853,8 @@ class TestDjangoAPIGuard:
             "to_agent_config",
             return_value=MagicMock(),
         ):
-            middleware = self._make_middleware(config)
+            with patch.dict(sys.modules, {"guard_agent": None}):
+                middleware = self._make_middleware(config)
             assert middleware.agent_handler is None
 
     def test_agent_initialization_success(self) -> None:
@@ -865,7 +866,7 @@ class TestDjangoAPIGuard:
         mock_agent_instance = MagicMock()
         mock_guard_agent_fn = MagicMock(return_value=mock_agent_instance)
         mock_agent_module: Any = MagicMock()
-        mock_agent_module.guard_agent = mock_guard_agent_fn
+        mock_agent_module.SyncGuardAgentHandler = mock_guard_agent_fn
 
         mock_agent_config = MagicMock()
 
@@ -1647,7 +1648,7 @@ class TestDjangoAPIGuardCoverage:
     def test_agent_init_with_mock_module(self) -> None:
         mock_agent = MagicMock()
         mock_module = MagicMock()
-        mock_module.guard_agent = MagicMock(return_value=mock_agent)
+        mock_module.SyncGuardAgentHandler = MagicMock(return_value=mock_agent)
         mock_config = MagicMock()
 
         config = SecurityConfig[SyncGuardRequest](
@@ -1719,7 +1720,9 @@ class TestDjangoAPIGuardCoverage:
             agent_api_key="test-key-long-enough-for-validation",
         )
         mock_module = MagicMock()
-        mock_module.guard_agent = MagicMock(side_effect=RuntimeError("init failed"))
+        mock_module.SyncGuardAgentHandler = MagicMock(
+            side_effect=RuntimeError("init failed")
+        )
         mock_config = MagicMock()
 
         with (
@@ -1977,7 +1980,7 @@ class TestDjangoAPIGuardCoverage:
         middleware.agent_handler = fake_handler
 
         first = middleware.agent_stats
-        assert first["buffer_stats"]["events_dropped"] == 0
+        assert first["buffer_stats"] == {"events_dropped": 0, "metrics_dropped": 0}
 
         fake_handler.get_stats.return_value = {
             "buffer_stats": {"events_dropped": 7, "metrics_dropped": 3},
@@ -1985,7 +1988,6 @@ class TestDjangoAPIGuardCoverage:
         }
 
         second = middleware.agent_stats
-        assert second["buffer_stats"]["events_dropped"] == 7
-        assert second["buffer_stats"]["metrics_dropped"] == 3
-        assert second["transport_stats"]["circuit_breaker_state"] == "OPEN"
+        assert second["buffer_stats"] == {"events_dropped": 7, "metrics_dropped": 3}
+        assert second["transport_stats"] == {"circuit_breaker_state": "OPEN"}
         assert fake_handler.get_stats.call_count == 2

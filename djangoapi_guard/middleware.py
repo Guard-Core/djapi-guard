@@ -6,9 +6,9 @@ import re
 import threading
 import time
 from collections import OrderedDict
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from django.conf import settings
 from django.contrib.staticfiles import finders
@@ -16,11 +16,14 @@ from django.contrib.staticfiles.views import serve as staticfiles_serve
 from django.core.exceptions import ImproperlyConfigured, SuspiciousFileOperation
 from django.http import HttpRequest, HttpResponse
 from django.http.response import HttpResponseBase
+from django.urls import ResolverMatch, URLPattern, URLResolver
+from django.urls.resolvers import LocalePrefixPattern, RegexPattern, RoutePattern
 from django.utils._os import safe_join
 from django.utils.cache import patch_vary_headers
 from django.views.static import serve as static_serve
 from guard_core.exceptions import GuardRedisError
 from guard_core.models import SecurityConfig
+from guard_core.protocols.geo_ip_protocol import GeoIPHandler
 from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync._utils.app_scope import hold_app_scope, release_app_scope
 from guard_core.sync._utils.sampling import observe_sampled_key
@@ -38,6 +41,9 @@ from guard_core.sync.handlers.cloud_handler import cloud_handler_for
 from guard_core.sync.handlers.cors_handler import CorsHandler, is_preflight
 from guard_core.sync.handlers.ratelimit_handler import RateLimitManager
 from guard_core.sync.handlers.security_headers_handler import security_headers_manager
+from guard_core.sync.protocols.agent_protocol import JsonValue
+from guard_core.sync.protocols.geo_ip_protocol import SyncGeoIPHandler
+from guard_core.sync.protocols.redis_protocol import SyncRedisHandlerProtocol
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 from guard_core.sync.utils import extract_client_ip, setup_custom_logging
 
@@ -46,13 +52,14 @@ from djangoapi_guard.adapters import (
     DjangoGuardRequest,
     DjangoGuardResponse,
     DjangoResponseFactory,
+    set_request_attribute,
     unwrap_response,
 )
 
 _decorator_missing_warned = False
 
 
-def _resolve_match(path: str) -> Any:
+def _resolve_match(path: str) -> ResolverMatch:
     from django.urls import Resolver404, resolve
     from django.utils import translation
 
@@ -66,15 +73,17 @@ def _resolve_match(path: str) -> Any:
             return resolve(path)
 
 
-def _route_identity(match: Any) -> tuple[Any, tuple[tuple[str, str], ...]]:
+def _route_identity(
+    match: ResolverMatch,
+) -> tuple[Callable[..., object], tuple[tuple[str, str], ...]]:
     params = [(str(index), str(value)) for index, value in enumerate(match.args)]
     params += [(name, str(value)) for name, value in match.kwargs.items()]
     return match.func, tuple(sorted(params))
 
 
-def _pattern_texts(pattern: Any) -> list[str]:
-    from django.urls.resolvers import LocalePrefixPattern, RoutePattern
-
+def _pattern_texts(
+    pattern: RegexPattern | RoutePattern | LocalePrefixPattern,
+) -> list[str]:
     if isinstance(pattern, LocalePrefixPattern):
         texts = [f"{code}/" for code, _ in settings.LANGUAGES]
         return texts if pattern.prefix_default_language else [*texts, ""]
@@ -83,9 +92,9 @@ def _pattern_texts(pattern: Any) -> list[str]:
     return [pattern.regex.pattern.removeprefix("^")]
 
 
-def _urlconf_prefixes(patterns: Any, base: str) -> list[str]:
-    from django.urls.resolvers import RoutePattern
-
+def _urlconf_prefixes(
+    patterns: Iterable[URLPattern | URLResolver], base: str
+) -> list[str]:
     prefixes: list[str] = []
     for entry in patterns:
         for text in _pattern_texts(entry.pattern):
@@ -136,8 +145,10 @@ class DjangoAPIGuard:
         self.last_cleanup: float = time.time()
         self.rate_limit_handler: RateLimitManager = RateLimitManager(self.config)
         self.guard_decorator: BaseSecurityDecorator | None = None
-        self.geo_ip_handler: Any = None
-        self.redis_handler: Any = None
+        self.geo_ip_handler: GeoIPHandler | SyncGeoIPHandler | None = None
+        self.redis_handler: SyncRedisHandlerProtocol | None = None
+        # shortcut: Any, SyncGuardAgentHandler.initialize_redis takes the async Redis
+        # protocol, so it is no SyncAgentHandlerProtocol; type it once guard-agent does
         self.agent_handler: Any = None
         self.security_pipeline: SecurityCheckPipeline | None = None
         self.event_bus: SecurityEventBus | None = None
@@ -170,7 +181,7 @@ class DjangoAPIGuard:
         return self._guard_response_factory
 
     @property
-    def agent_stats(self) -> dict[str, Any]:
+    def agent_stats(self) -> dict[str, JsonValue]:
         if self.agent_handler is None:
             return {"enabled": False}
         handler_stats = self.agent_handler.get_stats()
@@ -200,9 +211,9 @@ class DjangoAPIGuard:
             return
 
         try:
-            from guard_agent import guard_agent
+            from guard_agent import SyncGuardAgentHandler
 
-            self.agent_handler = guard_agent(agent_config)
+            self.agent_handler = SyncGuardAgentHandler(agent_config)
             self.logger.info("Guard Agent initialized successfully")
         except ImportError:
             self.logger.warning(
@@ -309,20 +320,26 @@ class DjangoAPIGuard:
 
         try:
             match = _resolve_match(request.path)
-            guard_request.state.guard_route_template = match.route
+            set_request_attribute(request, "guard_route_template", match.route)
             view_func = match.func
             if hasattr(view_func, "view_class"):
                 view_func = view_func.view_class
-            guard_request.state.guard_endpoint_id = (
-                f"{view_func.__module__}.{view_func.__qualname__}"
+            set_request_attribute(
+                request,
+                "guard_endpoint_id",
+                (f"{view_func.__module__}.{view_func.__qualname__}"),
             )
             if hasattr(view_func, "_guard_route_id"):
-                guard_request.state.guard_route_id = view_func._guard_route_id
+                set_request_attribute(
+                    request, "guard_route_id", view_func._guard_route_id
+                )
                 self._warn_once_decorator_missing()
             if getattr(self.security_pipeline, "needs_route_identity", False):
-                guard_request.state.guard_route_identity = _route_identity(match)
+                set_request_attribute(
+                    request, "guard_route_identity", _route_identity(match)
+                )
         except Resolver404:
-            guard_request.state.guard_route_unresolved = True
+            set_request_attribute(request, "guard_route_unresolved", True)
 
     def _warn_once_decorator_missing(self) -> None:
         global _decorator_missing_warned
@@ -339,7 +356,7 @@ class DjangoAPIGuard:
 
     def resolve_route(
         self, path: str
-    ) -> tuple[tuple[Any, tuple[tuple[str, str], ...]], ...]:
+    ) -> tuple[tuple[Callable[..., object], tuple[tuple[str, str], ...]], ...]:
         from django.urls import Resolver404
 
         try:
@@ -442,15 +459,14 @@ class DjangoAPIGuard:
         assert self.bypass_handler is not None
         assert self.route_resolver is not None
 
-        cast(Any, request)._guard_request_start_time = time.time()
+        set_request_attribute(request, "_guard_request_start_time", time.time())
         guard_request = DjangoGuardRequest(request)
         self._populate_guard_state(guard_request, request)
 
         request_headers = dict(request.headers)
 
-        def wrapped_call_next(guard_req: SyncGuardRequest) -> GuardResponse:
-            django_request = cast(HttpRequest, guard_req.state)
-            return DjangoGuardResponse(self.get_response(django_request))
+        def wrapped_call_next(_guard_req: SyncGuardRequest) -> GuardResponse:
+            return DjangoGuardResponse(self.get_response(request))
 
         preflight_response = self._handle_preflight(
             request, guard_request, request_headers
@@ -467,8 +483,8 @@ class DjangoAPIGuard:
         client_ip = extract_client_ip(guard_request, self.config, self.agent_handler)
         route_config = self.route_resolver.get_route_config(guard_request)
 
-        cast(Any, request)._guard_client_ip = client_ip
-        cast(Any, request)._guard_route_config = route_config
+        set_request_attribute(request, "_guard_client_ip", client_ip)
+        set_request_attribute(request, "_guard_route_config", route_config)
 
         bypass = self.bypass_handler.handle_security_bypass(
             guard_request, wrapped_call_next, route_config=route_config
@@ -760,14 +776,10 @@ class DjangoAPIGuard:
 
     def create_error_response(
         self, status_code: int, default_message: str
-    ) -> DjangoGuardResponse:
+    ) -> GuardResponse:
         if self.response_factory is None:
             raise RuntimeError("response_factory not initialized")
-        result: DjangoGuardResponse = cast(
-            DjangoGuardResponse,
-            self.response_factory.create_error_response(status_code, default_message),
-        )
-        return result
+        return self.response_factory.create_error_response(status_code, default_message)
 
     def reset(self) -> None:
         self.rate_limit_handler.reset()

@@ -1,14 +1,21 @@
 import io
-from collections.abc import Iterator, Mapping, MutableMapping
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
-from typing import Any, cast
+from typing import Protocol, runtime_checkable
 
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
 from django.http.response import HttpResponseBase
 from guard_core.exceptions import BodyReadStalledError
+from guard_core.protocols import GuardResponse, GuardResponseHeaders
 
 _READ_CHUNK_BYTES = 65536
 _SERVER_SOCKET_KEYS = ("gunicorn.socket", "werkzeug.socket")
+
+
+def set_request_attribute(request: HttpRequest, name: str, value: object) -> None:
+    # Django declares none of these per-request attributes (and types _stream as
+    # a BinaryIO a replay stream is not) and has no public way to attach them
+    setattr(request, name, value)
 
 
 def _caused_by_timeout(error: BaseException | None) -> bool:
@@ -21,25 +28,31 @@ def _caused_by_timeout(error: BaseException | None) -> bool:
     return False
 
 
+class _ByteSource(Protocol):
+    def read(self, size: int = -1, /) -> bytes: ...
+
+    def readline(self, size: int = -1, /) -> bytes: ...
+
+
 class _ReplayStream:
-    def __init__(self, prefix: bytes, rest: Any) -> None:
+    def __init__(self, prefix: bytes, rest: _ByteSource) -> None:
         self._prefix = io.BytesIO(prefix)
         self._rest = rest
 
     def read(self, size: int | None = -1) -> bytes:
         head = self._prefix.read(-1 if size is None else size)
         if size is None or size < 0:
-            return head + cast(bytes, self._rest.read())
+            return head + self._rest.read()
         if len(head) == size:
             return head
-        return head + cast(bytes, self._rest.read(size - len(head)))
+        return head + self._rest.read(size - len(head))
 
     def readline(self, size: int | None = -1) -> bytes:
         head = self._prefix.readline(-1 if size is None else size)
         if head.endswith(b"\n") or (size is not None and 0 <= size <= len(head)):
             return head
         remaining = -1 if size is None or size < 0 else size - len(head)
-        return head + cast(bytes, self._rest.readline(remaining))
+        return head + self._rest.readline(remaining)
 
     def __iter__(self) -> Iterator[bytes]:
         while line := self.readline():
@@ -55,14 +68,21 @@ class _ReplayStream:
             close()
 
 
+@runtime_checkable
+class _TimeoutSocket(Protocol):
+    def gettimeout(self) -> float | None: ...
+
+    def settimeout(self, value: float | None) -> None: ...
+
+
 @contextmanager
 def _idle_socket_timeout(
-    environ: Mapping[str, Any], idle_timeout: float
+    environ: Mapping[str, object], idle_timeout: float
 ) -> Iterator[None]:
     server_socket = next(
         (environ[key] for key in _SERVER_SOCKET_KEYS if key in environ), None
     )
-    if server_socket is None:
+    if not isinstance(server_socket, _TimeoutSocket):
         yield
         return
     previous = server_socket.gettimeout()
@@ -131,9 +151,9 @@ class DjangoGuardRequest:
     def read_body_prefix_until_idle(self, max_bytes: int, idle_timeout: float) -> bytes:
         if max_bytes <= 0:
             return b""
-        request = cast(Any, self._request)
+        request = self._request
         if hasattr(request, "_body"):
-            return cast(bytes, request._body[:max_bytes])
+            return request._body[:max_bytes]
         stream = request._stream
         chunks: list[bytes] = []
         received = 0
@@ -151,20 +171,20 @@ class DjangoGuardRequest:
             raise
         finally:
             prefix = b"".join(chunks)
-            request._stream = _ReplayStream(prefix, stream)
+            set_request_attribute(request, "_stream", _ReplayStream(prefix, stream))
         return prefix
 
     @property
-    def state(self) -> Any:
+    def state(self) -> HttpRequest:
         return self._request
 
     @property
-    def scope(self) -> dict[str, Any]:
+    def scope(self) -> dict[str, object]:
         return {"META": self._request.META}
 
 
 class DjangoHeadersMapping(Mapping[str, str]):
-    def __init__(self, meta: dict[str, Any]) -> None:
+    def __init__(self, meta: Mapping[str, object]) -> None:
         self._headers: dict[str, str] = {}
         for key, value in meta.items():
             if key.startswith("HTTP_"):
@@ -240,8 +260,8 @@ class DjangoGuardResponse:
         return result
 
     @property
-    def headers(self) -> MutableMapping[str, str]:
-        return cast(MutableMapping[str, str], self._response)
+    def headers(self) -> GuardResponseHeaders:
+        return self._response.headers
 
     @property
     def body(self) -> bytes | None:
@@ -286,7 +306,7 @@ class DjangoResponseFactory:
         return DjangoGuardResponse(response)
 
 
-def unwrap_response(guard_response: Any) -> HttpResponseBase:
+def unwrap_response(guard_response: GuardResponse) -> HttpResponseBase:
     if isinstance(guard_response, DjangoGuardResponse):
         return guard_response._response
     response = HttpResponse(

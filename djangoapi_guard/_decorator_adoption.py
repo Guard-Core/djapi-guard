@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import weakref
-from typing import Any
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
@@ -28,7 +27,7 @@ def _alive_decorators() -> list[BaseSecurityDecorator]:
 
 
 def _configured_decorator() -> BaseSecurityDecorator | None:
-    configured: Any = getattr(settings, "GUARD_DECORATOR", None)
+    configured: object = getattr(settings, "GUARD_DECORATOR", None)
     if configured is None:
         return None
     if isinstance(configured, str):

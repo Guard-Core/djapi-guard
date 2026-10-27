@@ -881,8 +881,8 @@ class TestDjangoAPIGuard:
                 assert middleware.handler_initializer is not None
                 composite = middleware.handler_initializer.composite_handler
                 assert composite is not None
-                assert middleware.agent_handler is composite
                 assert mock_agent_instance in composite._handlers
+                assert middleware.agent_handler is composite
                 mock_guard_agent_fn.assert_called_once_with(mock_agent_config)
 
     def test_agent_initialization_invalid_config(self) -> None:
@@ -1670,8 +1670,8 @@ class TestDjangoAPIGuardCoverage:
             assert middleware.handler_initializer is not None
             composite = middleware.handler_initializer.composite_handler
             assert composite is not None
-            assert middleware.agent_handler is composite
             assert mock_agent in composite._handlers
+            assert middleware.agent_handler is composite
 
     def test_agent_init_import_blocked(self) -> None:
         import builtins

@@ -158,13 +158,6 @@ plugins = ["mypy_django_plugin.main"]
 module = "djangoapi_guard.*"
 disallow_any_explicit = true
 
-[[tool.mypy.overrides]]
-module = [
-    # agent_handler: SyncGuardAgentHandler.initialize_redis takes guard-agent's async Redis protocol, so it is no SyncAgentHandlerProtocol
-    "djangoapi_guard.middleware",
-]
-disallow_any_explicit = false
-
 # D-189 Any ratchet: end
 
 [tool.django-stubs]

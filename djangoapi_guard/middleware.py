@@ -8,7 +8,6 @@ import time
 from collections import OrderedDict
 from collections.abc import Callable, Iterable
 from pathlib import Path
-from typing import Any
 
 from django.conf import settings
 from django.contrib.staticfiles import finders
@@ -41,7 +40,7 @@ from guard_core.sync.handlers.cloud_handler import cloud_handler_for
 from guard_core.sync.handlers.cors_handler import CorsHandler, is_preflight
 from guard_core.sync.handlers.ratelimit_handler import RateLimitManager
 from guard_core.sync.handlers.security_headers_handler import security_headers_manager
-from guard_core.sync.protocols.agent_protocol import JsonValue
+from guard_core.sync.protocols.agent_protocol import JsonValue, SyncAgentHandlerProtocol
 from guard_core.sync.protocols.geo_ip_protocol import SyncGeoIPHandler
 from guard_core.sync.protocols.redis_protocol import SyncRedisHandlerProtocol
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
@@ -75,7 +74,7 @@ def _resolve_match(path: str) -> ResolverMatch:
 
 def _route_identity(
     match: ResolverMatch,
-) -> tuple[Callable[..., object], tuple[tuple[str, str], ...]]:
+) -> tuple[object, tuple[tuple[str, str], ...]]:
     params = [(str(index), str(value)) for index, value in enumerate(match.args)]
     params += [(name, str(value)) for name, value in match.kwargs.items()]
     return match.func, tuple(sorted(params))
@@ -147,9 +146,7 @@ class DjangoAPIGuard:
         self.guard_decorator: BaseSecurityDecorator | None = None
         self.geo_ip_handler: GeoIPHandler | SyncGeoIPHandler | None = None
         self.redis_handler: SyncRedisHandlerProtocol | None = None
-        # shortcut: Any, SyncGuardAgentHandler.initialize_redis takes the async Redis
-        # protocol, so it is no SyncAgentHandlerProtocol; type it once guard-agent does
-        self.agent_handler: Any = None
+        self.agent_handler: SyncAgentHandlerProtocol | None = None
         self.security_pipeline: SecurityCheckPipeline | None = None
         self.event_bus: SecurityEventBus | None = None
         self.metrics_collector: MetricsCollector | None = None
@@ -356,7 +353,7 @@ class DjangoAPIGuard:
 
     def resolve_route(
         self, path: str
-    ) -> tuple[tuple[Callable[..., object], tuple[tuple[str, str], ...]], ...]:
+    ) -> tuple[tuple[object, tuple[tuple[str, str], ...]], ...]:
         from django.urls import Resolver404
 
         try:

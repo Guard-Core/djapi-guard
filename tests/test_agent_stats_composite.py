@@ -64,11 +64,13 @@ def test_agent_stats_answers_after_the_composite_handler_is_swapped_in(
 
     with patch.object(SecurityConfig, "to_agent_config", return_value=object()):
         middleware = DjangoAPIGuard(get_response)
-    assert middleware.agent_handler is stub
+    before: object = middleware.agent_handler
+    assert before is stub
 
     middleware._initialize_handlers()
 
-    assert middleware.agent_handler is not stub
+    after: object = middleware.agent_handler
+    assert after is not stub
     stats = middleware.agent_stats
     assert stats["enabled"] is True
     assert stats["buffer_stats"] == {"events_dropped": 3}

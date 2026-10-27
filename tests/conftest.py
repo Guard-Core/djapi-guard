@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 from django.test import RequestFactory
 from guard_core.models import SecurityConfig
-from guard_core.sync.handlers.ipban_handler import IPBanManager, ip_ban_manager
+from guard_core.sync.handlers.ipban_handler import reset_global_state
 from guard_core.sync.handlers.ratelimit_handler import RateLimitManager
 from guard_core.sync.handlers.security_headers_handler import security_headers_manager
 from guard_core.sync.handlers.suspatterns_handler import sus_patterns_handler
@@ -104,11 +104,7 @@ def forget_registered_decorators() -> None:
 @pytest.fixture(autouse=True)
 def cleanup_ipban_singleton() -> Iterator[None]:
     yield
-    # A second app's initialize_redis makes its own manager the class singleton
-    IPBanManager._instance = ip_ban_manager
-    ip_ban_manager.banned_ips.clear()
-    ip_ban_manager.redis_handler = None
-    ip_ban_manager.agent_handler = None
+    reset_global_state()
 
 
 @pytest.fixture(autouse=True)

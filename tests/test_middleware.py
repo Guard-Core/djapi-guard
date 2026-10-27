@@ -1843,18 +1843,23 @@ class TestDjangoAPIGuardCoverage:
         with pytest.raises(RuntimeError, match="handler_initializer"):
             middleware._initialize_handlers()
 
-    def test_build_preflight_response_cors_handler_none(self) -> None:
-        config = SecurityConfig[SyncGuardRequest](
-            enable_redis=False,
-            enable_agent=False,
-            enable_penetration_detection=False,
-            enable_cors=True,
-            cors_allow_origins=["https://example.com"],
-        )
-        middleware = self._make_middleware(config)
-        middleware._cors_handler = None
-        with pytest.raises(AssertionError):
-            middleware._build_preflight_response({"origin": "https://example.com"})
+    def test_report_route_misconfigurations_handler_initializer_none(self) -> None:
+        middleware = self._make_middleware()
+        middleware.handler_initializer = None
+        with pytest.raises(RuntimeError, match="handler_initializer"):
+            middleware._report_route_misconfigurations_at_startup()
+
+    def test_call_after_init_bypass_handler_none(self) -> None:
+        middleware = self._make_middleware()
+        middleware.bypass_handler = None
+        with pytest.raises(RuntimeError, match="bypass_handler"):
+            middleware._call_after_init(HttpRequest())
+
+    def test_call_after_init_route_resolver_none(self) -> None:
+        middleware = self._make_middleware()
+        middleware.route_resolver = None
+        with pytest.raises(RuntimeError, match="route_resolver"):
+            middleware._call_after_init(HttpRequest())
 
     def test_check_time_window_validator_none(self) -> None:
         middleware = self._make_middleware()

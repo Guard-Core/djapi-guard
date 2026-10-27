@@ -395,11 +395,13 @@ class DjangoAPIGuard:
             self.set_decorator_handler(adopted)
 
     def _report_route_misconfigurations_at_startup(self) -> None:
-        assert self.handler_initializer is not None
+        handler_initializer = self.handler_initializer
+        if handler_initializer is None:
+            raise RuntimeError("handler_initializer not initialized")
         self._adopt_decorator()
-        self.handler_initializer.guard_decorator = self.guard_decorator
-        self.handler_initializer.report_route_misconfigurations()
-        self.geo_ip_handler = self.handler_initializer.geo_ip_handler
+        handler_initializer.guard_decorator = self.guard_decorator
+        handler_initializer.report_route_misconfigurations()
+        self.geo_ip_handler = handler_initializer.geo_ip_handler
 
     def _ensure_handlers_initialized(
         self, request: HttpRequest
@@ -431,14 +433,15 @@ class DjangoAPIGuard:
         guard_request: DjangoGuardRequest,
         request_headers: dict[str, str],
     ) -> HttpResponseBase | None:
-        if self._cors_handler is None:
+        cors_handler = self._cors_handler
+        if cors_handler is None:
             return None
         if not is_preflight(request.method or "", request_headers):
             return None
         blocking = self._execute_security_pipeline(guard_request)
         if blocking:
             return self._attach_cors_headers(blocking, request)
-        return self._build_preflight_response(request_headers)
+        return self._build_preflight_response(cors_handler, request_headers)
 
     def __call__(self, request: HttpRequest) -> HttpResponseBase:
         early_response = self._ensure_handlers_initialized(request)
@@ -453,8 +456,12 @@ class DjangoAPIGuard:
             release_app_scope(token)
 
     def _call_after_init(self, request: HttpRequest) -> HttpResponseBase:
-        assert self.bypass_handler is not None
-        assert self.route_resolver is not None
+        bypass_handler = self.bypass_handler
+        if bypass_handler is None:
+            raise RuntimeError("bypass_handler not initialized")
+        route_resolver = self.route_resolver
+        if route_resolver is None:
+            raise RuntimeError("route_resolver not initialized")
 
         set_request_attribute(request, "_guard_request_start_time", time.time())
         guard_request = DjangoGuardRequest(request)
@@ -471,19 +478,19 @@ class DjangoAPIGuard:
         if preflight_response is not None:
             return preflight_response
 
-        passthrough = self.bypass_handler.handle_passthrough(
+        passthrough = bypass_handler.handle_passthrough(
             guard_request, wrapped_call_next
         )
         if passthrough is not None:
             return self._attach_cors_headers(unwrap_response(passthrough), request)
 
         client_ip = extract_client_ip(guard_request, self.config, self.agent_handler)
-        route_config = self.route_resolver.get_route_config(guard_request)
+        route_config = route_resolver.get_route_config(guard_request)
 
         set_request_attribute(request, "_guard_client_ip", client_ip)
         set_request_attribute(request, "_guard_route_config", route_config)
 
-        bypass = self.bypass_handler.handle_security_bypass(
+        bypass = bypass_handler.handle_security_bypass(
             guard_request, wrapped_call_next, route_config=route_config
         )
         if bypass is not None:
@@ -528,10 +535,9 @@ class DjangoAPIGuard:
         return None if refused is None else unwrap_response(refused)
 
     def _build_preflight_response(
-        self, request_headers: dict[str, str]
+        self, cors_handler: CorsHandler, request_headers: dict[str, str]
     ) -> HttpResponseBase:
-        assert self._cors_handler is not None
-        preflight = self._cors_handler.build_preflight_response(request_headers)
+        preflight = cors_handler.build_preflight_response(request_headers)
         response = HttpResponse(preflight.body, status=preflight.status_code)
         for key, value in preflight.headers.items():
             response[key] = value

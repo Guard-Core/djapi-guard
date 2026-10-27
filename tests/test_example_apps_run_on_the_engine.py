@@ -124,3 +124,46 @@ def test_example_country_block_route_blocks_the_blocked_country_only(
         blocked = Client(REMOTE_ADDR=BLOCKED_COUNTRY_IP).get("/access/country-block")
         allowed = Client(REMOTE_ADDR=ALLOWED_COUNTRY_IP).get("/access/country-block")
     assert (blocked.status_code, allowed.status_code) == (403, 200)
+
+
+_HSTS_DEFAULTS = {"max_age": 31536000, "include_subdomains": True, "preload": False}
+
+
+def _hsts_details(
+    config: SecurityConfig[SyncGuardRequest], urlconf: str
+) -> dict[str, object]:
+    with override_settings(
+        ROOT_URLCONF=urlconf, GUARD_SECURITY_CONFIG=config, MIDDLEWARE=GUARD_MIDDLEWARE
+    ):
+        response = Client(REMOTE_ADDR=ALLOWED_COUNTRY_IP).get("/headers/hsts-info")
+    assert response.status_code == 200
+    details: dict[str, object] = response.json()["details"]
+    return details
+
+
+def test_simple_example_hsts_info_reports_the_configured_hsts_block(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config, urlconf = _load_example("simple", monkeypatch)
+    assert config.security_headers is not None
+    block = {"max_age": 63072000, "include_subdomains": False, "preload": True}
+    monkeypatch.setitem(config.security_headers, "hsts", block)
+    assert _hsts_details(config, urlconf) == block
+
+
+def test_simple_example_hsts_info_answers_the_defaults_without_an_hsts_block(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config, urlconf = _load_example("simple", monkeypatch)
+    assert config.security_headers is not None
+    monkeypatch.delitem(config.security_headers, "hsts")
+    assert _hsts_details(config, urlconf) == _HSTS_DEFAULTS
+
+
+def test_simple_example_hsts_info_answers_the_defaults_for_a_none_hsts_block(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config, urlconf = _load_example("simple", monkeypatch)
+    assert config.security_headers is not None
+    monkeypatch.setitem(config.security_headers, "hsts", None)
+    assert _hsts_details(config, urlconf) == _HSTS_DEFAULTS

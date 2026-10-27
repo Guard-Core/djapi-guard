@@ -498,7 +498,8 @@ def headers_frame_test(request: HttpRequest) -> HttpResponse:
 
 @require_GET
 def headers_hsts_info(request: HttpRequest) -> JsonResponse:
-    hsts_config = (config.security_headers or {}).get("hsts", {})
+    hsts = (config.security_headers or {}).get("hsts")
+    hsts_config = hsts if isinstance(hsts, dict) else {}
     return JsonResponse(
         {
             "message": "HSTS configuration",

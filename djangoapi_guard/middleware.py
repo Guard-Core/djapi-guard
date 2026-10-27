@@ -580,51 +580,13 @@ class DjangoAPIGuard:
             self._build_event_bus_and_contexts()
 
     def _build_security_pipeline(self) -> None:
-        from guard_core.sync.core.checks import (
-            AuthenticationCheck,
-            CloudIpRefreshCheck,
-            CloudProviderCheck,
-            CustomRequestCheck,
-            CustomValidatorsCheck,
-            EmergencyModeCheck,
-            HttpsEnforcementCheck,
-            IpSecurityCheck,
-            RateLimitCheck,
-            ReferrerCheck,
-            RequestLoggingCheck,
-            RequestSizeContentCheck,
-            RequiredHeadersCheck,
-            RouteConfigCheck,
-            SecurityCheckPipeline,
-            SuspiciousActivityCheck,
-            TimeWindowCheck,
-            UserAgentCheck,
-        )
+        from guard_core.sync.core.checks import build_default_pipeline
 
-        checks = [
-            RouteConfigCheck(self),
-            EmergencyModeCheck(self),
-            HttpsEnforcementCheck(self),
-            RequestLoggingCheck(self),
-            RequestSizeContentCheck(self),
-            RequiredHeadersCheck(self),
-            AuthenticationCheck(self),
-            ReferrerCheck(self),
-            CustomValidatorsCheck(self),
-            TimeWindowCheck(self),
-            CloudIpRefreshCheck(self),
-            IpSecurityCheck(self),
-            CloudProviderCheck(self),
-            UserAgentCheck(self),
-            RateLimitCheck(self),
-            SuspiciousActivityCheck(self),
-            CustomRequestCheck(self),
-        ]
-
-        self.security_pipeline = SecurityCheckPipeline(checks)
+        pipeline = build_default_pipeline(self)
+        self.security_pipeline = pipeline
         self.logger.info(
-            f"Security pipeline initialized with {len(checks)} checks: "
-            f"{self.security_pipeline.get_check_names()}"
+            f"Security pipeline initialized with {len(pipeline)} checks: "
+            f"{pipeline.get_check_names()}"
         )
 
     def _configure_security_headers(

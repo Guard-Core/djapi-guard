@@ -12,6 +12,8 @@ Unreleased
 
 - **Fixed** - **Route decorators now work as the README shows.** `DjangoAPIGuard` started with no decorator and Django builds the middleware, so a view decorated with `SecurityDecorator` had every decorator-only check (route rate limits, IP and country rules, size and content-type limits, behavior rules) silently off unless code reached the middleware instance. The middleware now adopts the `djangoapi_guard.SecurityDecorator` the project built on its first request. Projects with several decorators name one in `settings.GUARD_DECORATOR` (instance or dotted path). With several and no setting, the first request raises `ImproperlyConfigured` naming `GUARD_DECORATOR` and the registered decorators. With a decorator that was not built through `djangoapi_guard`, one warning per process names the fix. `set_decorator_handler` is unchanged.
 
+- **Fixed** - **The middleware runs the engine's check order.** It builds its pipeline with the engine's `build_default_pipeline` instead of a list of its own, so the order is the engine's and a later engine change reaches it. IP security, cloud, user agent and rate limiting now run before `required_headers`, `authentication`, `referrer`, `custom_validators` and `time_window`: a banned IP that also lacks a required header gets the ban answer, and a request over the rate limit that also fails authentication gets `429`. The `cors_preflight` check now runs in the engine's position, between `user_agent` and `rate_limit`. The startup log line is unchanged in form, and the pipeline holds only the checks the config and the registered routes need, as in fastapi-guard.
+
 ___
 
 v5.0.0 (2026-10-15)

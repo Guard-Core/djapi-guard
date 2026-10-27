@@ -59,3 +59,15 @@ def test_version_falls_back_when_package_metadata_missing(
         assert reloaded.__version__ == "0.0.0+unknown"
     finally:
         importlib.reload(djangoapi_guard)
+
+
+def test_endpoint_rate_limit_key_problems_is_the_engines_function() -> None:
+    import guard_core.sync
+
+    import djangoapi_guard
+
+    assert "endpoint_rate_limit_key_problems" in djangoapi_guard.__all__
+    assert (
+        djangoapi_guard.endpoint_rate_limit_key_problems
+        is guard_core.sync.endpoint_rate_limit_key_problems
+    )

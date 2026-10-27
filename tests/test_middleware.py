@@ -1496,12 +1496,6 @@ class TestDjangoAPIGuardCoverage:
         with pytest.raises(RuntimeError, match="bypass_handler"):
             middleware._assert_initialized()
 
-    def test_assert_initialized_route_resolver_none(self) -> None:
-        middleware = self._make_middleware()
-        middleware.route_resolver = None
-        with pytest.raises(RuntimeError, match="route_resolver"):
-            middleware._assert_initialized()
-
     def test_assert_initialized_behavioral_none(self) -> None:
         middleware = self._make_middleware()
         middleware.behavioral_processor = None
@@ -1827,12 +1821,6 @@ class TestDjangoAPIGuardCoverage:
         with pytest.raises(RuntimeError, match="handler_initializer"):
             middleware._build_event_bus_and_contexts()
 
-    def test_build_event_bus_route_resolver_none(self) -> None:
-        middleware = self._make_middleware()
-        middleware.route_resolver = None
-        with pytest.raises(RuntimeError, match="route_resolver"):
-            middleware._build_event_bus_and_contexts()
-
     def test_process_behavioral_usage_none(self) -> None:
         middleware = self._make_middleware()
         middleware.behavioral_processor = None
@@ -1869,12 +1857,6 @@ class TestDjangoAPIGuardCoverage:
         middleware = self._make_middleware()
         middleware.bypass_handler = None
         with pytest.raises(RuntimeError, match="bypass_handler"):
-            middleware._call_after_init(HttpRequest())
-
-    def test_call_after_init_route_resolver_none(self) -> None:
-        middleware = self._make_middleware()
-        middleware.route_resolver = None
-        with pytest.raises(RuntimeError, match="route_resolver"):
             middleware._call_after_init(HttpRequest())
 
     def test_check_time_window_validator_none(self) -> None:

@@ -86,7 +86,6 @@ def test_execute_security_pipeline_returns_none_when_pipeline_unbuilt() -> None:
 def test_set_decorator_handler_noop_when_not_initialized() -> None:
     mw = _build(SecurityConfig[SyncGuardRequest](enable_redis=False))
 
-    mw.route_resolver = None
     mw.behavioral_processor = None
     mw.response_factory = None
     mw.handler_initializer = None

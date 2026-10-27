@@ -22,7 +22,6 @@ from django.utils.cache import patch_vary_headers
 from django.views.static import serve as static_serve
 from guard_core.exceptions import GuardRedisError
 from guard_core.models import SecurityConfig
-from guard_core.protocols.geo_ip_protocol import GeoIPHandler
 from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync import apply_security_headers_settings
 from guard_core.sync._utils.app_scope import hold_app_scope, release_app_scope
@@ -145,15 +144,15 @@ class DjangoAPIGuard:
         self.last_cleanup: float = time.time()
         self.rate_limit_handler: RateLimitManager = RateLimitManager(self.config)
         self.guard_decorator: BaseSecurityDecorator | None = None
-        self.geo_ip_handler: GeoIPHandler | SyncGeoIPHandler | None = None
+        self.geo_ip_handler: SyncGeoIPHandler | None = None
         self.redis_handler: SyncRedisHandlerProtocol | None = None
         self.agent_handler: SyncAgentHandlerProtocol | None = None
         self.security_pipeline: SecurityCheckPipeline | None = None
-        self.event_bus: SecurityEventBus | None = None
+        self.event_bus: SecurityEventBus
         self.metrics_collector: MetricsCollector | None = None
         self.handler_initializer: HandlerInitializer | None = None
         self.response_factory: ErrorResponseFactory | None = None
-        self.route_resolver: RouteConfigResolver | None = None
+        self.route_resolver: RouteConfigResolver
         self.validator: RequestValidator | None = None
         self.bypass_handler: BypassHandler | None = None
         self.behavioral_processor: BehavioralProcessor | None = None
@@ -165,7 +164,6 @@ class DjangoAPIGuard:
         self._handlers_initialized = False
 
         self._configure_security_headers(self.config)
-        self._init_geo_ip_handler()
         self._init_redis_handler()
         self._init_agent_handler()
         self._init_core_components()
@@ -184,9 +182,6 @@ class DjangoAPIGuard:
             return {"enabled": False}
         handler_stats = self.agent_handler.get_stats()
         return {"enabled": True, **handler_stats}
-
-    def _init_geo_ip_handler(self) -> None:
-        self.geo_ip_handler = self.config.geo_ip_handler
 
     def _init_redis_handler(self) -> None:
         self.redis_handler = None
@@ -227,7 +222,7 @@ class DjangoAPIGuard:
             config=self.config,
             redis_handler=self.redis_handler,
             agent_handler=self.agent_handler,
-            geo_ip_handler=self.geo_ip_handler,
+            geo_ip_handler=self.config.geo_ip_handler,
             rate_limit_handler=self.rate_limit_handler,
             guard_decorator=self.guard_decorator,
             adapter="djapi-guard",
@@ -245,8 +240,6 @@ class DjangoAPIGuard:
     def _build_event_bus_and_contexts(self) -> None:
         if self.handler_initializer is None:
             raise RuntimeError("handler_initializer not initialized")
-        if self.route_resolver is None:
-            raise RuntimeError("route_resolver not initialized")
 
         if self.handler_initializer.composite_handler is not None:
             self.agent_handler = self.handler_initializer.composite_handler
@@ -304,8 +297,6 @@ class DjangoAPIGuard:
     def _assert_initialized(self) -> None:
         if self.bypass_handler is None:
             raise RuntimeError("bypass_handler not initialized")
-        if self.route_resolver is None:
-            raise RuntimeError("route_resolver not initialized")
         if self.behavioral_processor is None:
             raise RuntimeError("behavioral_processor not initialized")
         if self.response_factory is None:
@@ -461,8 +452,6 @@ class DjangoAPIGuard:
         if bypass_handler is None:
             raise RuntimeError("bypass_handler not initialized")
         route_resolver = self.route_resolver
-        if route_resolver is None:
-            raise RuntimeError("route_resolver not initialized")
 
         set_request_attribute(request, "_guard_request_start_time", time.time())
         guard_request = DjangoGuardRequest(request)
@@ -647,8 +636,7 @@ class DjangoAPIGuard:
         self, decorator_handler: BaseSecurityDecorator | None
     ) -> None:
         self.guard_decorator = decorator_handler
-        if self.route_resolver:
-            self.route_resolver.context.guard_decorator = decorator_handler
+        self.route_resolver.context.guard_decorator = decorator_handler
         if self.behavioral_processor:
             self.behavioral_processor.context.guard_decorator = decorator_handler
         if self.response_factory:

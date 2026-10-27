@@ -1461,6 +1461,22 @@ class TestDjangoAPIGuardCoverage:
         )
         self._make_middleware(config)
 
+    def test_security_headers_hsts_none_configures_manager(self) -> None:
+        from guard_core.sync.handlers.security_headers_handler import (
+            security_headers_manager,
+        )
+
+        security_headers_manager.reset()
+        security_headers_manager.enabled = False
+        config = SecurityConfig[SyncGuardRequest](
+            enable_redis=False,
+            enable_penetration_detection=False,
+            security_headers={"enabled": True, "hsts": None},
+        )
+        self._make_middleware(config)
+        assert security_headers_manager.enabled is True
+        assert security_headers_manager.hsts_config is None
+
     def test_security_headers_disabled(self) -> None:
         from guard_core.sync.handlers.security_headers_handler import (
             security_headers_manager,

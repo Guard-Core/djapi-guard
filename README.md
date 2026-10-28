@@ -483,6 +483,7 @@ from djangoapi_guard import DjangoAPIGuard, SecurityConfig, SecurityDecorator
 from django.http import JsonResponse
 
 # In your settings.py, configure the middleware and security config as shown above.
+# block_countries needs the geo source set there: SecurityConfig(ipinfo_token="your_ipinfo_token_here")
 
 # Create decorator instance
 from django.conf import settings
@@ -571,6 +572,7 @@ def admin_endpoint(request):
     return JsonResponse({"status": "admin action"})
 
 
+# block_countries needs the geo source set in settings.py: SecurityConfig(ipinfo_token="your_ipinfo_token_here")
 @guard_deco.usage_monitor(max_calls=50, window=3600, action="ban")
 @guard_deco.return_monitor("rare_item", max_occurrences=3, window=86400, action="ban")
 @guard_deco.block_countries(["CN", "RU", "KP"])

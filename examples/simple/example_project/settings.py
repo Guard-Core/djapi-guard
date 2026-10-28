@@ -52,6 +52,17 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
 ]
 
+
+def require_ipinfo_token() -> str:
+    token = os.environ.get("IPINFO_TOKEN", "").strip()
+    if not token:
+        raise SystemExit(
+            "IPINFO_TOKEN is not set: the country routes need a GeoIP source. "
+            "Get a free token at https://ipinfo.io/signup and export IPINFO_TOKEN."
+        )
+    return token
+
+
 GUARD_SECURITY_CONFIG = SecurityConfig[SyncGuardRequest](
     whitelist=(),
     blacklist=("192.168.100.0/24",),
@@ -59,7 +70,7 @@ GUARD_SECURITY_CONFIG = SecurityConfig[SyncGuardRequest](
     trusted_proxy_depth=1,
     trust_x_forwarded_proto=True,
     # The country routes need a GeoIP source: set IPINFO_TOKEN in the environment
-    ipinfo_token=os.environ.get("IPINFO_TOKEN"),
+    ipinfo_token=require_ipinfo_token(),
     block_cloud_providers=frozenset({"AWS", "GCP", "Azure"}),
     blocked_user_agents=["badbot", "evil-crawler", "sqlmap"],
     enable_rate_limiting=True,

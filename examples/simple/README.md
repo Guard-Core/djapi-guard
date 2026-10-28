@@ -7,6 +7,7 @@ ___
 ## Quick Start
 
 ```bash
+export IPINFO_TOKEN=<your token>  # required: free at https://ipinfo.io/signup
 docker compose up --build
 ```
 
@@ -115,7 +116,7 @@ ___
 
 - `REDIS_URL` - Redis connection string (default: `redis://localhost:6379`)
 - `REDIS_PREFIX` - Key prefix for Redis (default: `djangoapi_guard:`)
-- `IPINFO_TOKEN` - IPInfo API token for geolocation
+- `IPINFO_TOKEN` - IPInfo API token for geolocation (required: the country routes need a GeoIP source; the example stops at startup without it, and `docker compose` refuses to start)
 
 ___
 

@@ -20,7 +20,7 @@ services:
       - DJANGO_SETTINGS_MODULE=advanced_project.settings
       - REDIS_URL=redis://redis:6379
       - REDIS_PREFIX=${REDIS_PREFIX:-djangoapi_guard:}
-      - IPINFO_TOKEN=${IPINFO_TOKEN:-test_token}
+      - IPINFO_TOKEN=${IPINFO_TOKEN:?set IPINFO_TOKEN (free at ipinfo.io)}
       - WEB_CONCURRENCY=${WEB_CONCURRENCY:-2}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]

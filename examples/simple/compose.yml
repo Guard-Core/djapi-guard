@@ -10,7 +10,7 @@ services:
       - DJANGO_SETTINGS_MODULE=example_project.settings
       - REDIS_URL=redis://redis:6379
       - "REDIS_PREFIX=djangoapi_guard:"
-      - IPINFO_TOKEN=${IPINFO_TOKEN:-test_token}
+      - IPINFO_TOKEN=${IPINFO_TOKEN:?set IPINFO_TOKEN (free at ipinfo.io)}
     volumes:
       - ./:/app:z
     depends_on:

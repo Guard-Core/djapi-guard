@@ -44,6 +44,8 @@ Unreleased
 
 - **Fixed** - **The first request initializes the handlers once.** Concurrent first requests each ran the lazy initialization and rebuilt the event bus, bypass handler and behavioral processor while others were served. The initialization now takes a lock, and the requests that waited for it find it done.
 
+- **Fixed** - **Routes are resolved in the urlconf the request was given.** The middleware resolved with the thread-local urlconf, not `request.urlconf` set by an earlier middleware (django-hosts and similar), so a route decorated in the per-request urlconf was seen as unresolved and its decorators were not applied: `require_headers` answered `200` without the header. Route resolution, the route gate and the endpoint identity now use `request.urlconf` when it is set.
+
 ___
 
 v5.0.0 (2026-10-15)

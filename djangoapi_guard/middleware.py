@@ -5,6 +5,7 @@ import posixpath
 import re
 import threading
 import time
+from contextvars import ContextVar
 from collections import OrderedDict
 from collections.abc import Callable, Iterable
 from pathlib import Path
@@ -58,18 +59,25 @@ from djangoapi_guard.adapters import (
 _decorator_missing_warned = False
 
 
+# The urlconf a middleware chose for the request being served (django-hosts and
+# similar set request.urlconf). The helpers the engine asks about a path have no
+# request, so it is held here while the request is served.
+_request_urlconf: ContextVar[str | None] = ContextVar("guard_urlconf", default=None)
+
+
 def _resolve_match(path: str) -> ResolverMatch:
     from django.urls import Resolver404, resolve
     from django.utils import translation
 
+    urlconf = _request_urlconf.get()
     try:
-        return resolve(path)
+        return resolve(path, urlconf=urlconf)
     except Resolver404:
         language = translation.get_language_from_path(path)
         if language is None:
             raise
         with translation.override(language):
-            return resolve(path)
+            return resolve(path, urlconf=urlconf)
 
 
 def _route_identity(
@@ -452,9 +460,11 @@ class DjangoAPIGuard:
 
         self._assert_initialized()
         token = hold_app_scope(self.config)
+        urlconf_token = _request_urlconf.set(getattr(request, "urlconf", None))
         try:
             return self._call_after_init(request)
         finally:
+            _request_urlconf.reset(urlconf_token)
             release_app_scope(token)
 
     def _call_after_init(self, request: HttpRequest) -> HttpResponseBase:

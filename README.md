@@ -859,7 +859,7 @@ The `SecurityConfig` class defines the structure for security configuration, inc
 - **emergency_whitelist**: ```list[str]``` - IPs allowed during emergency mode.
 - **exclude_paths**: ```list[str]``` - Paths excluded from security checks (default: ["/admin", "/static", "/favicon.ico"]).
 - **security_headers**: ```dict[str, Any] | None``` - Security headers configuration following OWASP best practices.
-- **endpoint_rate_limits**: ```dict[str, tuple[int, int]]``` - Per-endpoint rate limits as {endpoint: (limit, window)}.
+- **endpoint_rate_limits**: ```dict[str, tuple[int, int]]``` - Per-endpoint rate limits as {endpoint: (limit, window)}. A dynamic rule's limits merge per endpoint: the rule's value wins for the endpoints it names and these static limits stay for the rest.
 - **log_suspicious_level**: ```Literal["INFO","DEBUG","WARNING","ERROR","CRITICAL"] | None``` - Log level for suspicious activity (default: "WARNING").
 - **log_request_level**: ```Literal["INFO","DEBUG","WARNING","ERROR","CRITICAL"] | None``` - Log level for request logging (default: None).
 

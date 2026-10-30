@@ -50,6 +50,8 @@ Unreleased
 
 - **Fixed** - **The agent is flushed and stopped at process exit.** The adapter started the agent (a loop thread) and never stopped it, so the events and metrics it still buffered were lost when the process ended. An `atexit` hook, registered once per handler, now calls the agent's `stop()` (which flushes the buffer) and waits at most 5 seconds for it: the agent's own `stop()` retries a refused endpoint for about 14 seconds and a black-holed one for over a minute, and exit no longer waits for that. Events still unsent after the bound are dropped, with one warning.
 
+- **Fixed (docs)** - **The README states how a dynamic rule's `endpoint_rate_limits` combine with the config.** A dynamic rule's `endpoint_rate_limits` merge per endpoint: the rule's value wins for the endpoints it names and your static limits stay for the rest.
+
 ___
 
 v5.0.0 (2026-10-15)

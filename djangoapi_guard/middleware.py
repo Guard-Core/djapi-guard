@@ -308,7 +308,7 @@ class DjangoAPIGuard:
         from django.urls import Resolver404
 
         try:
-            match = _resolve_match(request.path)
+            match = _resolve_match(request.path_info)
             set_request_attribute(request, "guard_route_template", match.route)
             view_func = match.func
             if hasattr(view_func, "view_class"):

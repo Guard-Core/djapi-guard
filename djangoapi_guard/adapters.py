@@ -99,7 +99,7 @@ class DjangoGuardRequest:
 
     @property
     def url_path(self) -> str:
-        result: str = self._request.path
+        result: str = self._request.path_info
         return result
 
     @property

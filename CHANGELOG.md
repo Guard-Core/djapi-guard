@@ -40,6 +40,8 @@ Unreleased
 
 - **Added** - **Python 3.15 is supported.** `requires-python` is now `>=3.10,<3.16` and 3.15 joins the test matrix as a required version.
 
+- **Fixed** - **Decorator routes, `exclude_paths` and the route gate see the path without the script prefix.** The middleware resolved `request.path`, which carries `SCRIPT_NAME` (a sub-path mount or `FORCE_SCRIPT_NAME`), where Django resolves `request.path_info`. Under a prefix no route resolved, so a decorator such as `require_ip(whitelist=...)` was not enforced and `route_resolution_strict=True` answered `404` for every path. `DjangoGuardRequest.url_path` and the route resolution now use `request.path_info`, so `exclude_paths` and path rules match the path the URLconf matches, without the prefix.
+
 ___
 
 v5.0.0 (2026-10-15)

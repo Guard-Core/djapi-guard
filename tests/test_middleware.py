@@ -1512,6 +1512,7 @@ class TestDjangoAPIGuardCoverage:
         middleware = self._make_middleware()
         request = HttpRequest()
         request.path = "/test"
+        request.path_info = "/test"
         request.META["SERVER_NAME"] = "localhost"
         request.META["SERVER_PORT"] = "80"
 
@@ -1534,6 +1535,7 @@ class TestDjangoAPIGuardCoverage:
         middleware = self._make_middleware()
         request = HttpRequest()
         request.path = "/no-such-path"
+        request.path_info = "/no-such-path"
         request.META["SERVER_NAME"] = "localhost"
         request.META["SERVER_PORT"] = "80"
 
@@ -1546,6 +1548,7 @@ class TestDjangoAPIGuardCoverage:
         middleware = self._make_middleware()
         request = HttpRequest()
         request.path = "/"
+        request.path_info = "/"
         request.META["SERVER_NAME"] = "localhost"
         request.META["SERVER_PORT"] = "80"
 

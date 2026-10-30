@@ -5,9 +5,9 @@ import posixpath
 import re
 import threading
 import time
-from contextvars import ContextVar
 from collections import OrderedDict
 from collections.abc import Callable, Iterable
+from contextvars import ContextVar
 from pathlib import Path
 
 from django.conf import settings
@@ -57,6 +57,7 @@ from djangoapi_guard.adapters import (
 )
 
 _decorator_missing_warned = False
+_several_warned: set[object] = set()
 
 
 # The urlconf a middleware chose for the request being served (django-hosts and
@@ -78,6 +79,29 @@ def _resolve_match(path: str) -> ResolverMatch:
             raise
         with translation.override(language):
             return resolve(path, urlconf=urlconf)
+
+
+def _route_ids_of_view(match: ResolverMatch, method: str) -> list[tuple[str, str]]:
+    """Where a route decorator was applied to the view, as (place, route id).
+
+    A decorator on the function, on `Class.as_view()` or through
+    `method_decorator(name="dispatch")` marks the function Django resolved (as_view
+    copies the dispatch attributes onto it); one applied to the class marks the
+    class; `method_decorator` on a method marks that method, and only that method
+    runs for its HTTP method.
+    """
+    func = match.func
+    places: list[tuple[str, object]] = [("the view function", func)]
+    view_class = getattr(func, "view_class", None)
+    if view_class is not None:
+        # HEAD is served by `get` unless the class defines `head`.
+        verbs = [method, "get"] if method == "head" else [method]
+        places.append(("the class", view_class))
+        places.extend(
+            (f"its {verb} method", getattr(view_class, verb, None)) for verb in verbs
+        )
+    found = [(place, getattr(obj, "_guard_route_id", None)) for place, obj in places]
+    return [(place, route_id) for place, route_id in found if route_id]
 
 
 def _route_identity(
@@ -327,17 +351,32 @@ class DjangoAPIGuard:
                 "guard_endpoint_id",
                 (f"{view_func.__module__}.{view_func.__qualname__}"),
             )
-            if hasattr(view_func, "_guard_route_id"):
-                set_request_attribute(
-                    request, "guard_route_id", view_func._guard_route_id
-                )
+            route_ids = _route_ids_of_view(match, (request.method or "get").lower())
+            if route_ids:
+                set_request_attribute(request, "guard_route_id", route_ids[0][1])
                 self._warn_once_decorator_missing()
+                self._warn_once_decorators_in_several_places(view_func, route_ids)
             if getattr(self.security_pipeline, "needs_route_identity", False):
                 set_request_attribute(
                     request, "guard_route_identity", _route_identity(match)
                 )
         except Resolver404:
             set_request_attribute(request, "guard_route_unresolved", True)
+
+    def _warn_once_decorators_in_several_places(
+        self, view: object, route_ids: list[tuple[str, str]]
+    ) -> None:
+        if len({route_id for _, route_id in route_ids}) < 2 or view in _several_warned:
+            return
+        _several_warned.add(view)
+        places = ", ".join(place for place, _ in route_ids)
+        self.logger.warning(
+            "Route decorators are applied to %s of %s: their rules are not merged, "
+            "only those of %s are enforced. Apply the decorators in one place.",
+            places,
+            getattr(view, "__qualname__", view),
+            route_ids[0][0],
+        )
 
     def _warn_once_decorator_missing(self) -> None:
         global _decorator_missing_warned

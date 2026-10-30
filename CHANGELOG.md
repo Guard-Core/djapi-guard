@@ -46,6 +46,8 @@ Unreleased
 
 - **Fixed** - **Routes are resolved in the urlconf the request was given.** The middleware resolved with the thread-local urlconf, not `request.urlconf` set by an earlier middleware (django-hosts and similar), so a route decorated in the per-request urlconf was seen as unresolved and its decorators were not applied: `require_headers` answered `200` without the header. Route resolution, the route gate and the endpoint identity now use `request.urlconf` when it is set.
 
+- **Fixed** - **Route decorators on class-based views are enforced however they are applied.** Only a decorator applied to the class itself was enforced; one applied to `Class.as_view()`, through `method_decorator` on a method or through `method_decorator(name="dispatch")` was silently not (`200`, no warning), because the middleware replaced the resolved function by its class before it looked for the decorator mark. It now looks at the resolved function, the class, `dispatch` and the method of the request's HTTP verb (`head` falls back to `get`), so a method decorator guards its own method only. Decorators applied in more than one place of one view are not merged: the first place is enforced and one warning per view names them.
+
 ___
 
 v5.0.0 (2026-10-15)

@@ -1516,8 +1516,8 @@ class TestDjangoAPIGuardCoverage:
         request.META["SERVER_NAME"] = "localhost"
         request.META["SERVER_PORT"] = "80"
 
-        mock_view = Mock()
-        mock_view.view_class = Mock()
+        mock_view = Mock(spec=["view_class"])
+        mock_view.view_class = Mock(spec=["_guard_route_id", "__module__"])
         mock_view.view_class._guard_route_id = "test_id"
         mock_view.view_class.__module__ = "test_module"
         mock_view.view_class.__qualname__ = "TestView"

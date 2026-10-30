@@ -12,6 +12,7 @@ from guard_core.sync.handlers.suspatterns_handler import sus_patterns_handler
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 import djangoapi_guard._decorator_adoption as decorator_adoption
+from tests.agent_loop import close_the_agent_event_loop
 from tests.redis_isolation import (
     REDIS_PREFIX,
     REDIS_URL,
@@ -31,6 +32,12 @@ def _refuse_the_default_redis_port() -> Generator[None, None, None]:
     with pytest.MonkeyPatch.context() as monkeypatch:
         refuse_connections_to_the_default_redis_port(monkeypatch)
         yield
+
+
+@pytest.fixture(autouse=True)
+def _close_the_agent_event_loop() -> Generator[None, None, None]:
+    yield
+    close_the_agent_event_loop()
 
 
 @pytest.fixture(autouse=True)

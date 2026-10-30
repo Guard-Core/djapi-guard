@@ -14,6 +14,7 @@ from unittest.mock import Mock
 import pytest
 
 import djangoapi_guard.middleware as middleware_module
+from tests.agent_loop import close_the_agent_event_loop
 
 _CHILD = textwrap.dedent(
     """
@@ -166,10 +167,17 @@ def test_a_handler_is_registered_for_exit_once(
     middleware_module._agent_exit_registered.discard(id(handler))
 
 
+def _running_handler() -> Mock:
+    handler = Mock()
+    handler._thread.is_alive.return_value = True
+    handler._loop.is_closed.return_value = False
+    return handler
+
+
 def test_the_exit_hook_stops_the_agent_and_stays_quiet_when_it_finishes(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    handler = Mock()
+    handler = _running_handler()
 
     with caplog.at_level(logging.WARNING, logger="t"):
         middleware_module._stop_agent_within(handler, 5.0, logging.getLogger("t"))
@@ -181,7 +189,7 @@ def test_the_exit_hook_stops_the_agent_and_stays_quiet_when_it_finishes(
 def test_the_exit_hook_logs_a_stop_that_raises(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    handler = Mock()
+    handler = _running_handler()
     handler.stop.side_effect = RuntimeError("endpoint gone")
 
     with caplog.at_level(logging.ERROR, logger="t"):
@@ -194,7 +202,7 @@ def test_the_exit_hook_gives_up_on_a_stop_that_outlasts_the_bound(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     release = threading.Event()
-    handler = Mock()
+    handler = _running_handler()
     handler.stop.side_effect = lambda: release.wait(10)
 
     try:
@@ -204,3 +212,45 @@ def test_the_exit_hook_gives_up_on_a_stop_that_outlasts_the_bound(
         release.set()
 
     assert "did not finish flushing within 0.1 s at exit" in caplog.text
+
+
+def test_the_exit_hook_skips_a_handler_whose_loop_thread_has_ended() -> None:
+    handler = Mock()
+    handler._thread.is_alive.return_value = False
+    handler._loop.is_closed.return_value = False
+
+    started = time.perf_counter()
+    middleware_module._stop_agent_within(handler, 30.0, logging.getLogger("t"))
+
+    handler.stop.assert_not_called()
+    assert time.perf_counter() - started < 1.0
+
+
+def test_the_exit_hook_skips_a_handler_whose_loop_is_closed() -> None:
+    handler = Mock()
+    handler._thread.is_alive.return_value = True
+    handler._loop.is_closed.return_value = True
+
+    middleware_module._stop_agent_within(handler, 30.0, logging.getLogger("t"))
+
+    handler.stop.assert_not_called()
+
+
+def test_a_handler_the_user_already_stopped_costs_the_exit_nothing() -> None:
+    from guard_agent import SyncGuardAgentHandler
+    from guard_agent.models import AgentConfig
+
+    close_the_agent_event_loop()
+    with _stub_agent_endpoint() as (endpoint, _):
+        handler = SyncGuardAgentHandler(
+            AgentConfig(api_key="k" * 32, project_id="p", endpoint=endpoint)
+        )
+        handler.start()
+        handler.stop()
+
+        started = time.perf_counter()
+        middleware_module._stop_agent_within(handler, 30.0, logging.getLogger("t"))
+        elapsed = time.perf_counter() - started
+    close_the_agent_event_loop()
+
+    assert elapsed < 1.0

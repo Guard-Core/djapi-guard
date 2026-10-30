@@ -72,9 +72,22 @@ _several_warned: set[object] = set()
 _request_urlconf: ContextVar[str | None] = ContextVar("guard_urlconf", default=None)
 
 
+def _agent_already_stopped(handler: SyncAgentHandlerProtocol) -> bool:
+    """True when the handler's loop thread has ended or its loop is closed (the
+    user stopped it): a second stop() would wait on a loop that never runs."""
+    thread = getattr(handler, "_thread", None)
+    loop = getattr(handler, "_loop", None)
+    return (thread is not None and not thread.is_alive()) or (
+        loop is not None and loop.is_closed()
+    )
+
+
 def _stop_agent_within(
     handler: SyncAgentHandlerProtocol, seconds: float, logger: logging.Logger
 ) -> None:
+    if _agent_already_stopped(handler):
+        return
+
     def stop() -> None:
         try:
             handler.stop()

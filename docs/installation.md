@@ -30,6 +30,16 @@ Install `djapi-guard` with **uv** (recommended), **poetry**, or **pip**:
 
 **Note**: Ensure you have Python 3.10 or higher installed.
 
+Optional extras. The base install carries `djapi-guard`'s own dependencies and guard-core (`cachetools`, `pydantic` and `typing-extensions`); it does not carry the Redis client, the GeoIP reader or the downloaders. A config that needs a package you did not install is refused when `SecurityConfig` is built, with a message that names the extra:
+
+| Extra | Adds | Needed for |
+|---|---|---|
+| `djapi-guard[redis]` | the Redis client | `enable_redis=True`: Redis-backed rate limits, bans, caches and shared state |
+| `djapi-guard[geo]` | `maxminddb` and the downloader of the built-in GeoIP manager | country rules (`blocked_countries`, `whitelist_countries`, `@block_countries`, `@allow_countries`, `@geo_rate_limit`) and `ipinfo_token` |
+| `djapi-guard[cloud]` | `aiohttp` and `requests` | `block_cloud_providers` |
+
+Combine them as needed, for example `pip install "djapi-guard[redis,geo]"`.
+
 ___
 
 Prerequisites

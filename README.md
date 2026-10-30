@@ -513,7 +513,7 @@ Nothing else is needed: the middleware adopts the decorator on the first request
 GUARD_DECORATOR = "myapp.security.guard_deco"
 ```
 
-With several decorators and no `GUARD_DECORATOR`, the first request raises `ImproperlyConfigured` naming the setting and the registered decorators, so an ambiguous setup never runs with its controls off. A decorated view with no registered decorator at all logs one warning per process. `middleware.set_decorator_handler(decorator)` is still available for code that holds the middleware instance.
+With several decorators and no `GUARD_DECORATOR`, the middleware raises `ImproperlyConfigured` when Django builds it (at server load, before the first request) naming the setting and the registered decorators, so an ambiguous setup never runs with its controls off. A decorated view with no registered decorator at all logs one warning per process. `middleware.set_decorator_handler(decorator)` is still available for code that holds the middleware instance.
 
 ### Available Decorators
 

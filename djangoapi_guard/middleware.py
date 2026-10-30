@@ -162,6 +162,7 @@ class DjangoAPIGuard:
             CorsHandler(self.config) if self.config.enable_cors else None
         )
         self._handlers_initialized = False
+        self._init_lock = threading.Lock()
 
         self._configure_security_headers(self.config)
         self._init_redis_handler()
@@ -400,10 +401,8 @@ class DjangoAPIGuard:
     ) -> HttpResponseBase | None:
         if self._handlers_initialized:
             return None
-        self._adopt_decorator()
-        try:
-            self._initialize_handlers()
-        except GuardRedisError as e:
+        e = self._initialize_handlers_once()
+        if e is not None:
             if self.config.passive_mode:
                 if _sample_init_outage_line():
                     self.logger.error(
@@ -416,8 +415,19 @@ class DjangoAPIGuard:
             return self._attach_cors_headers(
                 self._redis_unavailable_response(), request
             )
-        self._handlers_initialized = True
         return None
+
+    def _initialize_handlers_once(self) -> GuardRedisError | None:
+        with self._init_lock:
+            if self._handlers_initialized:
+                return None
+            self._adopt_decorator()
+            try:
+                self._initialize_handlers()
+            except GuardRedisError as e:
+                return e
+            self._handlers_initialized = True
+            return None
 
     def _handle_preflight(
         self,

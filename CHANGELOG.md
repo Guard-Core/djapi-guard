@@ -48,6 +48,8 @@ Unreleased
 
 - **Fixed** - **Route decorators on class-based views are enforced however they are applied.** Only a decorator applied to the class itself was enforced; one applied to `Class.as_view()`, through `method_decorator` on a method or through `method_decorator(name="dispatch")` was silently not (`200`, no warning), because the middleware replaced the resolved function by its class before it looked for the decorator mark. It now looks at the resolved function, the class, `dispatch` and the method of the request's HTTP verb (`head` falls back to `get`), so a method decorator guards its own method only. Decorators applied in more than one place of one view are not merged: the first place is enforced and one warning per view names them.
 
+- **Fixed** - **The agent is flushed and stopped at process exit.** The adapter started the agent (a loop thread) and never stopped it, so the events and metrics it still buffered were lost when the process ended. An `atexit` hook, registered once per handler, now calls the agent's `stop()` (which flushes the buffer) and waits at most 5 seconds for it: the agent's own `stop()` retries a refused endpoint for about 14 seconds and a black-holed one for over a minute, and exit no longer waits for that. Events still unsent after the bound are dropped, with one warning.
+
 ___
 
 v5.0.0 (2026-10-15)

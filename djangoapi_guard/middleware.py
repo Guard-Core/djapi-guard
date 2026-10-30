@@ -1,3 +1,4 @@
+import atexit
 import inspect
 import logging
 import os
@@ -57,6 +58,11 @@ from djangoapi_guard.adapters import (
 )
 
 _decorator_missing_warned = False
+# How long process exit waits for an agent to flush and stop: its own stop() retries
+# a refused endpoint for 14 s and a black-holed one for over a minute.
+_AGENT_EXIT_WAIT_SECONDS = 5.0
+_agent_exit_registered: set[int] = set()
+_agent_exit_lock = threading.Lock()
 _several_warned: set[object] = set()
 
 
@@ -64,6 +70,38 @@ _several_warned: set[object] = set()
 # similar set request.urlconf). The helpers the engine asks about a path have no
 # request, so it is held here while the request is served.
 _request_urlconf: ContextVar[str | None] = ContextVar("guard_urlconf", default=None)
+
+
+def _stop_agent_within(
+    handler: SyncAgentHandlerProtocol, seconds: float, logger: logging.Logger
+) -> None:
+    def stop() -> None:
+        try:
+            handler.stop()
+        except Exception as error:
+            logger.error("Guard Agent did not stop cleanly at exit: %s", error)
+
+    worker = threading.Thread(target=stop, name="guard-agent-exit", daemon=True)
+    worker.start()
+    worker.join(seconds)
+    if worker.is_alive():
+        logger.warning(
+            "Guard Agent did not finish flushing within %.1f s at exit: the events "
+            "it still held are dropped",
+            seconds,
+        )
+
+
+def _stop_agent_at_exit(
+    handler: SyncAgentHandlerProtocol, logger: logging.Logger
+) -> None:
+    """Flush and stop the agent once at process exit, waiting at most
+    `_AGENT_EXIT_WAIT_SECONDS`. Registered once per handler."""
+    with _agent_exit_lock:
+        if id(handler) in _agent_exit_registered:
+            return
+        _agent_exit_registered.add(id(handler))
+    atexit.register(_stop_agent_within, handler, _AGENT_EXIT_WAIT_SECONDS, logger)
 
 
 def _resolve_match(path: str) -> ResolverMatch:
@@ -240,6 +278,7 @@ class DjangoAPIGuard:
             from guard_agent import SyncGuardAgentHandler
 
             self.agent_handler = SyncGuardAgentHandler(agent_config)
+            _stop_agent_at_exit(self.agent_handler, self.logger)
             self.logger.info("Guard Agent initialized successfully")
         except ImportError:
             self.logger.warning(

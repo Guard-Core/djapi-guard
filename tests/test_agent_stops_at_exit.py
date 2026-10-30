@@ -1,4 +1,5 @@
 import http.server
+import logging
 import os
 import socket
 import subprocess
@@ -163,3 +164,43 @@ def test_a_handler_is_registered_for_exit_once(
 
     assert len(calls) == 1
     middleware_module._agent_exit_registered.discard(id(handler))
+
+
+def test_the_exit_hook_stops_the_agent_and_stays_quiet_when_it_finishes(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    handler = Mock()
+
+    with caplog.at_level(logging.WARNING, logger="t"):
+        middleware_module._stop_agent_within(handler, 5.0, logging.getLogger("t"))
+
+    handler.stop.assert_called_once_with()
+    assert caplog.records == []
+
+
+def test_the_exit_hook_logs_a_stop_that_raises(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    handler = Mock()
+    handler.stop.side_effect = RuntimeError("endpoint gone")
+
+    with caplog.at_level(logging.ERROR, logger="t"):
+        middleware_module._stop_agent_within(handler, 5.0, logging.getLogger("t"))
+
+    assert "did not stop cleanly at exit: endpoint gone" in caplog.text
+
+
+def test_the_exit_hook_gives_up_on_a_stop_that_outlasts_the_bound(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    release = threading.Event()
+    handler = Mock()
+    handler.stop.side_effect = lambda: release.wait(10)
+
+    try:
+        with caplog.at_level(logging.WARNING, logger="t"):
+            middleware_module._stop_agent_within(handler, 0.05, logging.getLogger("t"))
+    finally:
+        release.set()
+
+    assert "did not finish flushing within 0.1 s at exit" in caplog.text

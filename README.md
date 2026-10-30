@@ -507,7 +507,7 @@ def restricted_endpoint(request):
     return JsonResponse({"data": "restricted"})
 ```
 
-Nothing else is needed: the middleware adopts the decorator on the first request, so decorating the views is enough. When the project builds more than one `SecurityDecorator`, name the one the middleware should use in `settings.py`, as the instance or its dotted path:
+Nothing else is needed: the middleware adopts the decorator when Django builds it (at server load, before the first request; a decorator built after that point is adopted on the first request), so decorating the views is enough. When the project builds more than one `SecurityDecorator`, name the one the middleware should use in `settings.py`, as the instance or its dotted path:
 
 ```python
 GUARD_DECORATOR = "myapp.security.guard_deco"

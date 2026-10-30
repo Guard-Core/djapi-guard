@@ -109,12 +109,14 @@ Default security_headers configuration:
     "csp": None,  # Content Security Policy directives
     "frame_options": "SAMEORIGIN",
     "content_type_options": "nosniff",
-    "xss_protection": "1; mode=block",
+    "xss_protection": "0",
     "referrer_policy": "strict-origin-when-cross-origin",
     "permissions_policy": "geolocation=(), microphone=(), camera=()",
     "custom": None,  # Additional custom headers
 }
 ```
+
+`xss_protection` defaults to `"0"` since the 5.0.0 engine; set `"1; mode=block"` to restore the earlier default.
 
 CORS Settings
 -------------

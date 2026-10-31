@@ -23,11 +23,13 @@ print(f"Slow patterns: {len(stats['slow_patterns'])}")
 | Web Application | < 50ms | < 1% |
 | High Security | < 100ms | < 2% |
 
+These are targets for your deployment, not engine guarantees. For scale, the engine's own detection on guard-core 5.0.0 (Python 3.11.18, arm64, sync tree) takes 4.7 ms of CPU at the median and 6.7 ms at the 99th percentile for a 200-character benign value, 2.3 ms (p99 3.3 ms) for a value that carries an attack, and 18.1 ms (p99 26.5 ms) for a 10,000-character benign value. Across 1,000 pattern executions the performance monitor reported an average of 119 µs per pattern, a slowest of 15.2 ms and a timeout rate of 0%. Reproduce with `PYTHONPATH=. python -m perf_gate.detection_components latency --tree sync` from a checkout of guard-core 5.0.0.
+
 ## Optimization Strategies
 
 ### 1. Pattern Optimization
 
-Identify and optimize slow patterns. Use non-capturing groups for better performance.
+Identify and optimize slow patterns. Non-capturing groups do not make a pattern faster by themselves: on `(SELECT|INSERT|UPDATE).*(FROM|INTO)` the CPU ratio of `(?:...)` to `(...)` is 1.001 at 10,000 characters, against 1.001 for the same pattern measured twice (`PYTHONPATH=. python -m perf_gate.detection_components tuning --tree sync`).
 
 ### 2. Content Preprocessing
 

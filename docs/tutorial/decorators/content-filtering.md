@@ -46,9 +46,9 @@ User Agent Blocking
 ```python
 @guard_deco.block_user_agents(
     [
-        r".*bot.*",
-        r".*crawler.*",
-        r".*spider.*",
+        r"bot",
+        r"crawler",
+        r"spider",
     ]
 )
 def human_only_endpoint(request):

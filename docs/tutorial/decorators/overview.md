@@ -22,7 +22,12 @@ from djangoapi_guard import SecurityConfig
 from djangoapi_guard import SecurityDecorator
 from django.http import JsonResponse
 
-config = SecurityConfig()
+# block_countries and geo_rate_limit need a geo source, and return_monitor
+# needs response body scanning
+config = SecurityConfig(
+    ipinfo_token="your_ipinfo_token_here",
+    behavior_scan_response_body=True,
+)
 guard_deco = SecurityDecorator(config)
 
 
@@ -147,6 +152,9 @@ config = SecurityConfig(
     enable_rate_limiting=True,
     rate_limit=100,
     rate_limit_window=3600,
+    # geo source for block_countries, allow_countries and geo_rate_limit; response body scanning for return_monitor
+    ipinfo_token="your_ipinfo_token_here",
+    behavior_scan_response_body=True,
 )
 
 # Create decorator instance

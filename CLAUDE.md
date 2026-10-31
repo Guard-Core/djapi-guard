@@ -18,7 +18,7 @@ It is a direct port of [FlaskAPI Guard](https://github.com/Guard-Core/flaskapi-g
 
 - **PyPI Package**: `djapi-guard`
 - **Import Name**: `djangoapi_guard`
-- **Python Support**: 3.10, 3.11, 3.12, 3.13
+- **Python Support**: 3.10, 3.11, 3.12, 3.13, 3.14, 3.15
 - **Package Manager**: uv
 - **Build System**: Docker + Make
 
@@ -45,7 +45,7 @@ Because Django is synchronous, this adapter imports the unasync-generated sync m
 ### Request Flow
 
 1. Middleware extracts the client IP (proxy-aware), resolves route config from decorators via `_guard_route_id` on view functions, and populates guard state on the request (including `guard_route_id` on the guard request's state).
-2. The `SecurityCheckPipeline` runs the 17 checks in order; the first non-`None` `HttpResponse` short-circuits and blocks.
+2. The `SecurityCheckPipeline` runs up to 18 checks in order; the first non-`None` `HttpResponse` short-circuits and blocks.
 3. On pass-through, the response is finalized through the response factory (behavioral return rules, metrics, security headers, CORS).
 
 CORS preflight (`OPTIONS`) is handled explicitly before the pipeline.
@@ -115,7 +115,7 @@ GUARD_SECURITY_CONFIG = SecurityConfig(
 ### Testing
 
 - `make test` - Run tests in Docker (Python 3.10)
-- `make test-all` - Test all Python versions (3.10-3.13)
+- `make test-all` - Test all Python versions (3.10-3.15)
 - `make test-3.12` - Test specific Python version
 - `make local-test` - Run tests locally with uv
 
@@ -170,7 +170,7 @@ uv run vulture vulture_whitelist.py
 
 Environment variables:
 
-- `PYTHON_VERSION` - Python version (3.10-3.13)
+- `PYTHON_VERSION` - Python version (3.10-3.15)
 - `REDIS_URL` - Redis connection string
 - `REDIS_PREFIX` - Key prefix for Redis
 - `IPINFO_TOKEN` - IPInfo API token
@@ -214,7 +214,7 @@ djangoapi-guard/
 
 - **pyproject.toml** - Project metadata and dependencies; tool configurations for ruff, mypy, pytest (including `DJANGO_SETTINGS_MODULE = "tests.settings"`), vulture, bandit, radon, xenon, deptry
 - **uv.lock** - Locked dependency versions, updated with `make lock`
-- **compose.yml / Dockerfile** - Multi-version Python support (3.10-3.13) and a Redis service for testing
+- **compose.yml / Dockerfile** - Multi-version Python support (3.10-3.15) and a Redis service for testing
 - **.pre-commit-config.yaml** - ruff format, ruff check, mypy, vulture, bandit, safety, radon, xenon, deptry
 
 ## Technology Stack

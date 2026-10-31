@@ -10,7 +10,7 @@ from guard_core.sync.handlers.suspatterns_handler import sus_patterns_manager_fo
 patterns = sus_patterns_manager_for(config)
 
 stats = patterns.get_performance_stats()
-print(f"Average execution time: {stats['summary']['average_time']}s")
+print(f"Average execution time: {stats['summary']['avg_execution_time']}s")
 print(f"Timeout rate: {stats['summary']['timeout_rate'] * 100}%")
 print(f"Slow patterns: {len(stats['slow_patterns'])}")
 ```

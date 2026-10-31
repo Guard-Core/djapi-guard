@@ -5,7 +5,7 @@ description: DjAPI Guard (import djangoapi_guard), the Django security middlewar
 
 # DjAPI Guard
 
-Security middleware for Django: IP filtering, rate limiting, signature-based attack-pattern detection, security headers, and route-level security decorators. Import package is `djangoapi_guard` (distribution name `djapi-guard`). Current as of djapi-guard 4.3.0 over guard-core 3.15+.
+Security middleware for Django: IP filtering, rate limiting, signature-based attack-pattern detection, security headers, and route-level security decorators. Import package is `djangoapi_guard` (distribution name `djapi-guard`). Current as of djapi-guard 5.0.0 over guard-core 5.0.0.
 
 DjAPI Guard is a thin adapter: all security logic (models, handlers, decorators, detection engine, protocols) lives in `guard_core`; this package only bridges Django to it through the unasync-generated `guard_core.sync` mirror. Everything is synchronous.
 
@@ -24,7 +24,7 @@ DjAPI Guard is a thin adapter: all security logic (models, handlers, decorators,
 uv add djapi-guard             # or: pip install djapi-guard
 ```
 
-Requires Python 3.10-3.13 and `guard-core>=3.15.0` (installed automatically). `import djangoapi_guard` pulls the `guard_core.sync` mirror, not the async tree.
+Requires Python 3.10-3.15 and guard-core 5.0.0 or newer (installed automatically). `import djangoapi_guard` pulls the `guard_core.sync` mirror, not the async tree.
 
 ## Setup
 
@@ -65,7 +65,7 @@ Decorators from `guard_core.sync.decorators` write per-route `RouteConfig` objec
 ## Footguns
 
 * **`GUARD_SECURITY_CONFIG` must be a `SecurityConfig` instance.** A plain dict from older docs is not converted by the middleware; construct `SecurityConfig(**settings_dict)` in settings if you keep a dict around.
-* **`enable_redis` defaults to `True`** with `redis_url="redis://localhost:6379"`. Without a reachable Redis, stateful checks fail; set `enable_redis=False` in no-Redis environments or point at a real instance.
+* **`enable_redis` is off unless a Redis connection field is set.** Since guard-core 5.0.0 Redis turns on exactly when `redis_url`, `redis_prefix` or another `redis_*` connection field is set explicitly (an explicit `enable_redis` always wins), and `enable_redis=True` alone uses `redis_url="redis://localhost:6379"`. With Redis on and no reachable server, stateful checks fail; point `redis_url` at a real instance or leave the Redis fields unset.
 * **Async callables are rejected.** Any `async def` custom check, validator, or modifier raises `TypeError`; convert to a sync function.
 * **Decorator-only checks need exactly one adoptable decorator.** With several `SecurityDecorator` instances and no `settings.GUARD_DECORATOR`, the first request raises `ImproperlyConfigured` naming the setting. A decorator built from `guard_core.sync.decorators` directly is not registered either; import `SecurityDecorator` from `djangoapi_guard` or set `GUARD_DECORATOR`.
 * **`passive_mode=True` logs but never blocks.** Use it to trial rules; switch to `False` once logs confirm the traffic you expect.

@@ -366,14 +366,16 @@ Detect and log potential penetration attempts using the `detect_penetration_atte
 
 ```python
 from django.http import JsonResponse
-from djangoapi_guard.utils import detect_penetration_attempt
+from guard_core.sync.utils import detect_penetration_attempt
+
+from djangoapi_guard.adapters import DjangoGuardRequest
 
 
 def submit_data(request):
-    is_suspicious, trigger_info = detect_penetration_attempt(request)
-    if is_suspicious:
+    result = detect_penetration_attempt(DjangoGuardRequest(request), config)
+    if result.is_threat:
         return JsonResponse(
-            {"error": f"Suspicious activity detected: {trigger_info}"},
+            {"error": f"Suspicious activity detected: {result.trigger_info}"},
             status=400,
         )
     return JsonResponse({"message": "Data submitted successfully"})
@@ -619,7 +621,7 @@ GUARD_SECURITY_CONFIG = SecurityConfig(
         "192.168.1.0/24",
     ],  # List of trusted proxy IPs or CIDR ranges
     trusted_proxy_depth=1,  # How many proxies to expect in chain
-    trust_x_forwarded_proto=True,  # Whether to trust X-Forwarded-Proto for HTTPS detection (default: True)
+    trust_x_forwarded_proto=True,  # Whether to trust X-Forwarded-Proto for HTTPS detection (default: False)
 )
 ```
 
@@ -642,24 +644,26 @@ The library implements a handler that uses IPInfo's [IP to Country database](htt
 To use the geolocation feature with this handler:
 
 ```python
-from djangoapi_guard.protocols.geo_ip_protocol import GeoIPHandler
+from djangoapi_guard import IPInfoManager
 
 GUARD_SECURITY_CONFIG = SecurityConfig(
-    geo_ip_handler=GeoIPHandler,
+    geo_ip_handler=IPInfoManager("your_ipinfo_token_here"),
     blocked_countries=[
         "AR",
         "IT",
     ],  # Block specific countries using ISO 3166-1 alpha-2 codes
-    whitelist_countries=["US", "CA"],  # Optional: Only allow specific countries
 )
 ```
+
+Set `whitelist_countries=["US", "CA"]` instead of `blocked_countries` to allow only those countries. A non-empty `whitelist_countries` is restrictive, so `blocked_countries` has no effect while it is set and guard-core warns about the combination.
 
 The database is automatically downloaded and cached locally when the middleware starts, if required, and it's updated daily to ensure accuracy.
 
 You can also use a service other than IPInfo, as long as you implement the same protocol:
 
 ```python
-# Implement the required methods of djangoapi_guard.protocols.geo_ip_protocol.GeoIPHandler protocol
+# Implement the required methods of the guard_core.sync.protocols.geo_ip_protocol.SyncGeoIPHandler protocol
+# (exported by djangoapi_guard as GeoIPHandler)
 
 
 class GeoIPHandler:
@@ -680,18 +684,29 @@ class GeoIPHandler:
         # your implementation
         ...
 
+    def initialize_agent(self, agent_handler: "SyncAgentHandlerProtocol") -> None:
+        # your implementation
+        ...
+
     def get_country(self, ip: str) -> str | None:
+        # your implementation
+        ...
+
+    def refresh(self) -> None:
+        # your implementation
+        ...
+
+    def close(self) -> None:
         # your implementation
         ...
 
 
 GUARD_SECURITY_CONFIG = SecurityConfig(
-    geo_ip_handler=GeoIPHandler,
+    geo_ip_handler=GeoIPHandler(),
     blocked_countries=[
         "AR",
         "IT",
     ],  # Block specific countries using ISO 3166-1 alpha-2 codes
-    whitelist_countries=["US", "CA"],  # Optional: Only allow specific countries
 )
 ```
 
@@ -824,9 +839,9 @@ The `SecurityConfig` class defines the structure for security configuration, inc
 ### Attributes
 
 - **geo_ip_handler**: ```GeoIPHandler``` - Protocol that allows for IP geolocation functionality.
-- **enable_redis**: ```bool``` - Enable Redis for distributed state (default: True). When disabled, uses in-memory storage.
+- **enable_redis**: ```bool``` - Enable Redis for distributed state (default: False). Left unset, Redis is on exactly when a Redis connection field (`redis_url`, `redis_prefix` and the other `redis_*` settings) was set explicitly, and off otherwise; an explicit `enable_redis` always wins. When disabled, uses in-memory storage.
 - **redis_url**: ```str | None``` - Redis connection URL (default: "redis://localhost:6379").
-- **redis_prefix**: ```str``` - Prefix for Redis keys (default: "djangoapi_guard:").
+- **redis_prefix**: ```str``` - Prefix for Redis keys (default: "guard_core:").
 - **trusted_proxies**: ```list[str] | None``` - List of trusted proxy IPs or CIDR ranges.
 - **trusted_proxy_depth**: ```int``` - How many proxies to expect in chain.
 - **trust_x_forwarded_proto**: ```bool``` - Whether to trust X-Forwarded-Proto for HTTPS detection.
@@ -850,7 +865,7 @@ The `SecurityConfig` class defines the structure for security configuration, inc
 - **cors_allow_credentials**: ```bool``` - Whether to allow credentials in CORS requests.
 - **cors_expose_headers**: ```list[str]``` - A list of headers that are exposed in CORS responses.
 - **cors_max_age**: ```int``` - The maximum age in seconds that the results of a preflight request can be cached.
-- **block_cloud_providers**: ```set[str]``` - Case-sensitive cloud provider names to block. Valid values: 'AWS', 'GCP', 'Azure'. Invalid entries are silently ignored.
+- **block_cloud_providers**: ```set[str]``` - Cloud provider names to block, matched case-insensitively. Valid values: 'AWS', 'Azure', 'DigitalOcean', 'GCP', 'Linode', 'Vultr'. A bare name blocks the whole provider and a `:!region` suffix carves out a region exception. An unknown name raises a validation error.
 - **passive_mode**: ```bool``` - When enabled, logs suspicious activity without blocking requests (default: False).
 - **enable_ip_banning**: ```bool``` - Enable or disable IP banning functionality (default: True).
 - **enable_rate_limiting**: ```bool``` - Enable or disable rate limiting (default: True).

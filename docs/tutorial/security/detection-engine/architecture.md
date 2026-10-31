@@ -39,13 +39,25 @@ Components are initialized lazily based on configuration - PatternCompiler, Cont
 ```python
 {
     "is_threat": bool,
-    "threat_score": float,          # 0.0-1.0
-    "threats": [{"type": "regex", "pattern": str, ...}],
+    "threat_score": float,  # 0.0-1.0
+    "threats": [
+        {
+            "type": "regex",
+            "pattern": str,
+            "match": str,
+            "position": int,
+            "execution_time": float,
+            "category": str,
+            "weight": float,
+        }
+    ],
     "context": str,
+    "original_length": int,
+    "processed_length": int,
     "execution_time": float,
-    "detection_method": str,        # "enhanced" or "legacy"
+    "detection_method": str,  # "enhanced" or "legacy"
     "timeouts": list[str],
-    "correlation_id": str | None
+    "correlation_id": str | None,
 }
 ```
 

@@ -16,7 +16,7 @@ Methods
 -------
 
 ```python
-def refresh(self, providers=_ALL_PROVIDERS, ttl=3600):
+def refresh(self, providers=_ALL_PROVIDERS):
     """Refresh IP ranges."""
 
 

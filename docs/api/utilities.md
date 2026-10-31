@@ -44,7 +44,7 @@ def is_user_agent_allowed(user_agent: str, config: SecurityConfig) -> bool:
     """Check if user agent is allowed."""
 
 
-def is_ip_allowed(ip: str, config: SecurityConfig, ipinfo_db=None) -> bool:
+def is_ip_allowed(ip: str, config: SecurityConfig, geo_ip_handler=None) -> bool:
     """Check if IP address is allowed."""
 
 

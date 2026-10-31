@@ -48,7 +48,7 @@ Request -> __call__
 2. BypassHandler.handle_passthrough()
 3. Extract client IP and route config
 4. BypassHandler.handle_security_bypass()
-5. SecurityCheckPipeline.execute() (17 checks)
+5. SecurityCheckPipeline.execute() (up to 18 checks)
 6. BehavioralProcessor.process_usage_rules()
 7. get_response(request) -> view function
 8. ErrorResponseFactory.process_response()

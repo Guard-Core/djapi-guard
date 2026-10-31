@@ -16,7 +16,7 @@ Adding Custom Patterns
 -----------------------
 
 ```python
-from djangoapi_guard import SusPatternsManager
+from guard_core.sync.handlers.suspatterns_handler import SusPatternsManager
 
 
 def setup_patterns():
@@ -30,13 +30,13 @@ Pattern Types
 
 ```python
 # Custom XSS pattern
-SusPatternsManager.add_pattern(r"<script\s*src=.*>", custom=True)
+SusPatternsManager.add_pattern(r"<script\s+src=[^>]*>", custom=True)
 
 # Custom SQL injection pattern
 SusPatternsManager.add_pattern(r";\s*DROP\s+TABLE", custom=True)
 
 # Custom file path pattern
-SusPatternsManager.add_pattern(r"\.\.\/.*\/etc\/passwd", custom=True)
+SusPatternsManager.add_pattern(r"\.\./[^/]{1,64}/etc/passwd", custom=True)
 ```
 
 ___

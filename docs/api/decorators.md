@@ -24,7 +24,11 @@ Main Decorator Class
 from djangoapi_guard import SecurityConfig
 from djangoapi_guard import SecurityDecorator
 
-config = SecurityConfig()
+config = SecurityConfig(
+    # geo source for block_countries, allow_countries and geo_rate_limit; response body scanning for return_monitor
+    ipinfo_token="your_ipinfo_token_here",
+    behavior_scan_response_body=True,
+)
 guard_deco = SecurityDecorator(config)
 
 

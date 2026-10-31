@@ -58,7 +58,8 @@ from djangoapi_guard import CloudManager, cloud_handler
 from djangoapi_guard import IPBanManager, ip_ban_manager
 from djangoapi_guard import RateLimitManager, rate_limit_handler
 from djangoapi_guard import RedisManager, redis_handler
-from djangoapi_guard import SusPatternsManager, sus_patterns_handler
+from djangoapi_guard import sus_patterns_handler
+from guard_core.sync.handlers.suspatterns_handler import SusPatternsManager
 from djangoapi_guard import BehaviorTracker, BehaviorRule
 
 # Special case - requires parameters

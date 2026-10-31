@@ -38,25 +38,26 @@ ___
 Security Check Pipeline
 -----------------------
 
-17 checks execute in order:
+Up to 18 checks execute in this order (guard-core's `DEFAULT_CHECK_CLASSES`, `guard_core/sync/core/checks/factory.py`; a check that the configuration can never trigger is not built):
 
 1. **RouteConfigCheck** - Extract route config and client IP
-2. **EmergencyModeCheck** - Emergency mode
-3. **HttpsEnforcementCheck** - HTTPS enforcement
+2. **EmergencyModeCheck** - Emergency mode (highest priority)
+3. **HttpsEnforcementCheck** - HTTPS enforcement (can redirect)
 4. **RequestLoggingCheck** - Log request
 5. **RequestSizeContentCheck** - Validate size/content
-6. **RequiredHeadersCheck** - Check required headers
-7. **AuthenticationCheck** - Verify authentication
-8. **ReferrerCheck** - Check referrer
-9. **CustomValidatorsCheck** - Custom validators
-10. **TimeWindowCheck** - Time-based access
-11. **CloudIpRefreshCheck** - Periodic maintenance
-12. **IpSecurityCheck** - IP whitelist/blacklist
-13. **CloudProviderCheck** - Cloud provider blocking
-14. **UserAgentCheck** - User agent filtering
-15. **RateLimitCheck** - Rate limiting
-16. **SuspiciousActivityCheck** - Threat detection
-17. **CustomRequestCheck** - Custom checks
+6. **CloudIpRefreshCheck** - Periodic maintenance
+7. **IpSecurityCheck** - IP whitelist/blacklist
+8. **CloudProviderCheck** - Cloud provider blocking
+9. **UserAgentCheck** - User agent filtering
+10. **CorsPreflightCheck** - CORS preflight answers
+11. **RateLimitCheck** - Rate limiting
+12. **RequiredHeadersCheck** - Check required headers
+13. **AuthenticationCheck** - Verify authentication
+14. **ReferrerCheck** - Check referrer
+15. **CustomValidatorsCheck** - Custom validators
+16. **TimeWindowCheck** - Time-based access
+17. **SuspiciousActivityCheck** - Threat detection
+18. **CustomRequestCheck** - Custom checks
 
 ___
 

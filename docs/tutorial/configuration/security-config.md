@@ -66,9 +66,9 @@ Redis Settings
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `enable_redis` | bool | True | Enable Redis integration |
+| `enable_redis` | bool | False | Enable Redis integration. Left unset, Redis is on exactly when a Redis connection field (`redis_url`, `redis_prefix` and the other `redis_*` settings) is set explicitly; an explicit `enable_redis` always wins |
 | `redis_url` | str \| None | "redis://localhost:6379" | Redis server URL |
-| `redis_prefix` | str | "djangoapi_guard:" | Prefix for Redis keys |
+| `redis_prefix` | str | "guard_core:" | Prefix for Redis keys |
 
 Agent Settings
 --------------

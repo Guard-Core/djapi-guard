@@ -1265,7 +1265,7 @@ release = [
 requires-dist = [
     { name = "bandit", extras = ["toml"], marker = "extra == 'dev'" },
     { name = "deptry", marker = "extra == 'dev'" },
-    { name = "django" },
+    { name = "django", specifier = ">=5.2.17" },
     { name = "django-stubs", marker = "extra == 'dev'" },
     { name = "guard-agent", marker = "extra == 'dev'" },
     { name = "guard-core", specifier = ">=4.4.0" },

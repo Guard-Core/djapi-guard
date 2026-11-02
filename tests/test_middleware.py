@@ -1,5 +1,4 @@
 import logging
-import os
 import sys
 import time
 from collections.abc import Iterator
@@ -28,8 +27,6 @@ from djangoapi_guard import SecurityDecorator
 from djangoapi_guard.adapters import DjangoGuardRequest, DjangoGuardResponse
 from djangoapi_guard.middleware import DjangoAPIGuard
 from tests.redis_isolation import REDIS_URL
-
-REDIS_URL = os.getenv("REDIS_URL") or "redis://localhost:6379"
 
 
 @pytest.fixture(autouse=True)

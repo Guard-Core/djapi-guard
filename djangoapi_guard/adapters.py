@@ -312,6 +312,7 @@ def unwrap_response(guard_response: GuardResponse) -> HttpResponseBase:
     response = HttpResponse(
         guard_response.body,
         status=guard_response.status_code,
+        content_type="text/plain; charset=utf-8",
     )
     for key, value in guard_response.headers.items():
         response[key] = value

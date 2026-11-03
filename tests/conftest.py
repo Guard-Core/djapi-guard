@@ -56,6 +56,12 @@ def redis_cleanup() -> None:
     delete_every_key_under_the_suite_prefix()
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _delete_the_last_tests_keys() -> Generator[None, None, None]:
+    yield
+    delete_every_key_under_the_suite_prefix()
+
+
 def pytest_terminal_summary(terminalreporter: pytest.TerminalReporter) -> None:
     terminalreporter.write_line(
         f"redis isolation: REDIS_URL={REDIS_URL} REDIS_PREFIX={REDIS_PREFIX}"

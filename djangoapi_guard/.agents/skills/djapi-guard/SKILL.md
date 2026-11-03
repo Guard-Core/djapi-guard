@@ -5,7 +5,7 @@ description: DjAPI Guard (import djangoapi_guard), the Django security middlewar
 
 # DjAPI Guard
 
-Security middleware for Django: IP filtering, rate limiting, signature-based attack-pattern detection, security headers, and route-level security decorators. Import package is `djangoapi_guard` (distribution name `djapi-guard`). Current as of djapi-guard 5.0.0 over guard-core 5.0.0.
+Security middleware for Django: IP filtering, rate limiting, signature-based attack-pattern detection, security headers, and route-level security decorators. Import package is `djangoapi_guard` (distribution name `djapi-guard`). Current as of djapi-guard 6.0.0 over guard-core 5.0.0.
 
 DjAPI Guard is a thin adapter: all security logic (models, handlers, decorators, detection engine, protocols) lives in `guard_core`; this package only bridges Django to it through the unasync-generated `guard_core.sync` mirror. Everything is synchronous.
 

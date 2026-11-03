@@ -110,7 +110,7 @@ You can also download the example app as a Docker container from [GitHub Contain
 docker pull ghcr.io/guard-core/djapi-guard-example:latest
 
 # Or pull a specific version (matches library releases)
-docker pull ghcr.io/guard-core/djapi-guard-example:v5.0.0
+docker pull ghcr.io/guard-core/djapi-guard-example:v6.0.0
 ```
 
 ___

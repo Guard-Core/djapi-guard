@@ -234,21 +234,21 @@ def test_time_window_overnight(
 
     with patch("guard_core.sync.core.validation.validator.datetime") as mock_datetime:
         mock_now = Mock()
-        mock_now.strftime.return_value = "23:00"
+        mock_now.hour, mock_now.minute = 23, 0
         mock_datetime.now.return_value = mock_now
         result = middleware._check_time_window(time_restrictions)
         assert result is True
 
     with patch("guard_core.sync.core.validation.validator.datetime") as mock_datetime:
         mock_now = Mock()
-        mock_now.strftime.return_value = "05:00"
+        mock_now.hour, mock_now.minute = 5, 0
         mock_datetime.now.return_value = mock_now
         result = middleware._check_time_window(time_restrictions)
         assert result is True
 
     with patch("guard_core.sync.core.validation.validator.datetime") as mock_datetime:
         mock_now = Mock()
-        mock_now.strftime.return_value = "12:00"
+        mock_now.hour, mock_now.minute = 12, 0
         mock_datetime.now.return_value = mock_now
         result = middleware._check_time_window(time_restrictions)
         assert result is False
@@ -261,14 +261,14 @@ def test_time_window_normal(security_config: SecurityConfig[SyncGuardRequest]) -
 
     with patch("guard_core.sync.core.validation.validator.datetime") as mock_datetime:
         mock_now = Mock()
-        mock_now.strftime.return_value = "12:00"
+        mock_now.hour, mock_now.minute = 12, 0
         mock_datetime.now.return_value = mock_now
         result = middleware._check_time_window(time_restrictions)
         assert result is True
 
     with patch("guard_core.sync.core.validation.validator.datetime") as mock_datetime:
         mock_now = Mock()
-        mock_now.strftime.return_value = "20:00"
+        mock_now.hour, mock_now.minute = 20, 0
         mock_datetime.now.return_value = mock_now
         result = middleware._check_time_window(time_restrictions)
         assert result is False

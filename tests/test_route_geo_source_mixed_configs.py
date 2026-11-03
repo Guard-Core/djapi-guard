@@ -1,11 +1,3 @@
-import os
-
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.settings")
-
-import django
-
-django.setup()
-
 import logging
 
 import pytest

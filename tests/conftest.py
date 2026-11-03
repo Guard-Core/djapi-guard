@@ -2,6 +2,7 @@ import os
 from collections.abc import Generator, Iterator
 from typing import Any
 
+import django
 import pytest
 from django.test import RequestFactory
 from guard_core.models import SecurityConfig
@@ -23,6 +24,7 @@ from tests.redis_isolation import (
 )
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.settings")
+django.setup()
 
 point_security_config_defaults_at_the_test_redis()
 

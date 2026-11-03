@@ -1,11 +1,3 @@
-import os
-
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.settings")
-
-import django
-
-django.setup()
-
 from typing import Any, cast
 from unittest.mock import MagicMock, Mock, patch
 

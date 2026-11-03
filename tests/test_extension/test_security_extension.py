@@ -1,14 +1,8 @@
-import os
 from collections.abc import Generator
 from unittest.mock import MagicMock, patch
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.settings")
-
-import django
-
-django.setup()
-
 import pytest
+from django.conf import settings
 from django.http import HttpRequest, HttpResponse
 from django.test import RequestFactory
 from guard_core.models import SecurityConfig
@@ -36,9 +30,7 @@ def _make_middleware(
             enable_agent=False,
             enable_penetration_detection=False,
         )
-    with patch.object(
-        django.conf.settings, "GUARD_SECURITY_CONFIG", config, create=True
-    ):
+    with patch.object(settings, "GUARD_SECURITY_CONFIG", config, create=True):
         middleware = DjangoAPIGuard(_get_response)
     return middleware
 

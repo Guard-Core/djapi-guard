@@ -1,11 +1,3 @@
-import os
-
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.settings")
-
-import django
-
-django.setup()
-
 from collections.abc import Callable, Iterator
 from typing import cast
 

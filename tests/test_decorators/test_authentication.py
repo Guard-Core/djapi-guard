@@ -1,13 +1,3 @@
-import os
-
-from guard_core.sync.protocols.request_protocol import SyncGuardRequest
-
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.settings")
-
-import django
-
-django.setup()
-
 from collections.abc import Callable, Iterator
 from typing import Any, cast
 from unittest.mock import Mock
@@ -17,6 +7,7 @@ from django.core.handlers.base import BaseHandler
 from django.http import HttpRequest, HttpResponse
 from django.http.response import HttpResponseBase
 from django.test import RequestFactory, override_settings
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard import SecurityConfig, SecurityDecorator
 from djangoapi_guard.middleware import DjangoAPIGuard

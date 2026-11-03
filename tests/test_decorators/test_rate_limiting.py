@@ -1,17 +1,8 @@
-import os
-
-from guard_core.sync.protocols.request_protocol import SyncGuardRequest
-
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.settings")
-
-import django
-
-django.setup()
-
 from typing import Any, cast
 from unittest.mock import Mock
 
 import pytest
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard import SecurityConfig, SecurityDecorator
 

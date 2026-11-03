@@ -1,4 +1,3 @@
-import os
 from typing import Any
 
 import django.conf
@@ -9,17 +8,17 @@ from guard_core.models import SecurityConfig
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard.middleware import DjangoAPIGuard
+from tests.redis_isolation import REDIS_PREFIX, REDIS_URL
 
 ORIGIN_A = "https://a.example"
 ORIGIN_B = "https://b.example"
-REDIS_URL = os.getenv("REDIS_URL") or "redis://localhost:6379"
 
 
 def _middleware(name: str, origin: str, max_age: int, redis: bool) -> DjangoAPIGuard:
     values: dict[str, Any] = {
         "enable_redis": redis,
         "redis_url": REDIS_URL if redis else None,
-        "redis_prefix": "wp102:",
+        "redis_prefix": f"{REDIS_PREFIX}wp102:",
         "enable_agent": False,
         "enable_penetration_detection": False,
         "enable_rate_limiting": False,

@@ -1,4 +1,3 @@
-import os
 from collections.abc import Callable, Iterator
 from typing import Any
 
@@ -12,8 +11,8 @@ from guard_core.sync.handlers.ipban_handler import ip_ban_manager_for
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard.middleware import DjangoAPIGuard
+from tests.redis_isolation import REDIS_PREFIX, REDIS_URL
 
-REDIS_URL = os.getenv("REDIS_URL") or "redis://localhost:6379"
 PROXY = "10.0.0.1"
 
 
@@ -25,7 +24,7 @@ def _middleware(
     django.conf.settings.GUARD_SECURITY_CONFIG = SecurityConfig[SyncGuardRequest](
         enable_redis=True,
         redis_url=REDIS_URL,
-        redis_prefix=prefix,
+        redis_prefix=REDIS_PREFIX + prefix,
         trusted_proxies=proxies,
         enable_agent=False,
         enable_penetration_detection=False,

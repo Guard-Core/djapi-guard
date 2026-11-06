@@ -194,7 +194,7 @@ def _config(**overrides: Any) -> SecurityConfig[SyncGuardRequest]:
 class _TimingOutHandler(WSGIRequestHandler):
     timeout = 0.3
 
-    def log_message(self, format: str, *args: Any) -> None:
+    def log_message(self, _format: str, *args: Any) -> None:
         return None
 
 

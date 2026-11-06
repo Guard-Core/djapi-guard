@@ -1,4 +1,5 @@
 import os
+import sys
 from collections.abc import Generator, Iterator
 from typing import Any
 
@@ -13,6 +14,7 @@ from guard_core.sync.handlers.suspatterns_handler import sus_patterns_handler
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 import djangoapi_guard._decorator_adoption as decorator_adoption
+from tests import network_guard, thread_guard
 from tests.agent_loop import close_the_agent_event_loop
 from tests.redis_isolation import (
     REDIS_PREFIX,
@@ -22,6 +24,9 @@ from tests.redis_isolation import (
     refuse_connections_to_the_default_redis_port,
     refused_connections,
 )
+
+network_guard.install()
+thread_guard.install()
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.settings")
 django.setup()
@@ -49,6 +54,26 @@ def refused_redis_connections() -> Generator[list[tuple[Any, ...]], None, None]:
     attempts = list(refused_connections)
     refused_connections.clear()
     assert not attempts, f"the test connected to port 6379: {attempts}"
+
+
+def _refuse_the_ipinfo_download(self: object) -> None:
+    raise ConnectionError("the test suite has no network")
+
+
+@pytest.fixture(autouse=True)
+def no_ipinfo_database_download(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "guard_core.sync.handlers.ipinfo_handler.IPInfoManager._fetch_and_store_database",
+        _refuse_the_ipinfo_download,
+    )
+
+
+@pytest.fixture(autouse=True)
+def no_cloud_range_downloads(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "guard_core.sync.handlers.cloud_handler._fetch_provider_ranges",
+        lambda provider: (set(), {}),
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -154,3 +179,19 @@ def reset_ratelimit_singleton() -> Iterator[None]:
         manager.request_timestamps.clear()
         manager.redis_handler = None
         manager.agent_handler = None
+
+
+@pytest.fixture(autouse=True)
+def _no_outbound_network() -> Iterator[None]:
+    network_guard.reset()
+    yield
+    violations = network_guard.drain()
+    assert not violations, "test reached the network:\n" + "\n".join(violations)
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    thread_guard.stop_the_shared_regex_pools()
+    leaked = thread_guard.leaked_threads()
+    if leaked:
+        sys.stderr.write(f"\nthreads the tests left running: {leaked}\n")
+        session.exitstatus = pytest.ExitCode.TESTS_FAILED

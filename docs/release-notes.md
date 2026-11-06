@@ -6,6 +6,8 @@ ___
 Unreleased
 ----------
 
+- **Fixed** - **The `guard-core` floor is `>=5.0.0,<6` (LEDGER 6.356, 6.537, D-14).** This release's code uses engine names that guard-core 4.4.x does not have, so an environment that kept 4.4.x imported a broken package. Upgrading now installs guard-core 5.x and stops below the next major. An install that must stay on guard-core 4.x stays on the previous release of this package. The lock follows the floor once guard-core 5.0.0 is published.
+
 - **Fixed** - **Every shipped dependency declares a lower bound with no known advisory (LEDGER 6.510, D-240).** The declared requirement is now `django>=5.2.17,!=6.0,!=6.0.1,!=6.0.2,!=6.0.3,!=6.0.4,!=6.0.5,!=6.0.6,!=6.0.7,!=6.1` (it had no bound). This narrows the supported Django range on purpose: Django 4.2, 5.0 and 5.1 and 5.2 before 5.2.17 have open advisories (4.2.30 has 10, 5.0.14 has 14, 5.1.15 has 10; 5.2.17, 6.0.8 and 6.1.1 have none), and the series are out of upstream support (4.2 LTS ended 2026-04-07, 5.0 2025-04-02, 5.1 2025-12-03). Django 6.0.0 to 6.0.7 and 6.1.0 have open advisories too and are excluded, because the CVE gate tests only the lowest release. The suite passes with Django at 5.2.17 on Python 3.10 and 3.11.
 
 - **Fixed** - **The lock moved past every known advisory and the supply chain is pinned (LEDGER 6.495 to 6.497).** The lock moves `certifi` to 2026.10.18, `joserfc` to 1.7.6 and `nltk` to 3.10.4; no declared floor changes. A new CVE gate (`cve-scan.yml`, run on every pull request, push, daily and before a release) fails on any open advisory in the lock, in the declared dependency floors and in the published image, and every workflow action and tool install is pinned to a commit or version.

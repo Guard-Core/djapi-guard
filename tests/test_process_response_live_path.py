@@ -61,7 +61,7 @@ def test_real_request_goes_through_process_response(enable_cors: bool) -> None:
     with patch.object(
         DjangoAPIGuard, "_process_response", autospec=True
     ) as process_response:
-        process_response.side_effect = lambda self, req, resp, rt, rc: resp
+        process_response.side_effect = lambda self, req, resp, _rt, _rc: resp
         response = middleware(request)
     assert process_response.call_count == 1
     assert isinstance(process_response.call_args.args[3], float)
@@ -103,6 +103,6 @@ def test_finalize_response_passes_elapsed_time_from_request_start() -> None:
     with patch.object(
         DjangoAPIGuard, "_process_response", autospec=True
     ) as process_response:
-        process_response.side_effect = lambda self, req, resp, rt, rc: resp
+        process_response.side_effect = lambda self, req, resp, _rt, _rc: resp
         middleware._finalize_response(request, HttpResponse("ok"), None)
     assert 5.0 <= process_response.call_args.args[3] < 10.0

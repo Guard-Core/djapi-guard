@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any, cast
 from unittest.mock import MagicMock, Mock, patch
 
@@ -564,3 +565,17 @@ def test_route_specific_rate_limit_config(
     assert retrieved is not None
     assert retrieved.rate_limit == 5
     assert retrieved.rate_limit_window == 60
+
+
+@pytest.mark.parametrize(
+    ("hour", "allowed"), [(3, False), (10, True), (20, False)], ids=["3", "10", "20"]
+)
+def test_time_window_single_digit_hour_bound_is_compared_as_time(
+    security_config: SecurityConfig[SyncGuardRequest], hour: int, allowed: bool
+) -> None:
+    middleware = _make_middleware(security_config)
+
+    with patch("guard_core.sync.core.validation.validator.datetime") as mock_datetime:
+        mock_datetime.now.return_value = datetime(2026, 1, 1, hour, 0)
+        result = middleware._check_time_window({"start": "9:00", "end": "17:00"})
+    assert result is allowed

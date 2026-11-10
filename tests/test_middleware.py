@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import sys
 import time
@@ -22,6 +23,7 @@ from guard_core.sync.handlers.ratelimit_handler import (
 )
 from guard_core.sync.handlers.suspatterns_handler import sus_patterns_manager_for
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
+from redis import Redis as SyncRedis
 
 from djangoapi_guard import SecurityDecorator
 from djangoapi_guard.adapters import DjangoGuardRequest, DjangoGuardResponse
@@ -1171,10 +1173,22 @@ class TestDjangoAPIGuard:
         ]
 
     @staticmethod
-    def _evalsha_calls(redis: Any) -> int:
-        with redis.get_connection() as conn:
-            stats = conn.info("commandstats").get("cmdstat_evalsha", {})
-        return int(stats.get("calls", 0))
+    @contextlib.contextmanager
+    def _own_evalsha_calls() -> Iterator[list[Any]]:
+        """The EVALSHA calls this process's Redis clients make.
+
+        Redis's ``cmdstat_evalsha`` counter is server-wide: any other client on
+        the same Redis (another test run, another service) moves it.
+        """
+        calls: list[Any] = []
+        original = SyncRedis.evalsha
+
+        def counting(self: SyncRedis, *args: Any, **kwargs: Any) -> Any:
+            calls.append(args[0])
+            return original(self, *args, **kwargs)
+
+        with patch.object(SyncRedis, "evalsha", counting):
+            yield calls
 
     def test_lua_script_execution(self) -> None:
         config = SecurityConfig[SyncGuardRequest](
@@ -1189,15 +1203,14 @@ class TestDjangoAPIGuard:
         handler, redis = self._real_redis_rate_limiter(config)
         try:
             assert handler.rate_limit_script_sha is not None
-            before = self._evalsha_calls(redis)
-            results = self._three_checks(handler)
-            after = self._evalsha_calls(redis)
+            with self._own_evalsha_calls() as evalsha_calls:
+                results = self._three_checks(handler)
 
             assert results[0] is None
             assert results[1] is None
             assert results[2] is not None
             assert results[2].status_code == 429
-            assert after - before >= 3
+            assert len(evalsha_calls) == 3
         finally:
             redis.delete_pattern("rate_limit:rate:*")
             redis.close()
@@ -1215,17 +1228,44 @@ class TestDjangoAPIGuard:
         handler, redis = self._real_redis_rate_limiter(config)
         try:
             handler.rate_limit_script_sha = None
-            before = self._evalsha_calls(redis)
-            results = self._three_checks(handler)
-            after = self._evalsha_calls(redis)
+            with self._own_evalsha_calls() as evalsha_calls:
+                results = self._three_checks(handler)
 
             assert results[0] is None
             assert results[1] is None
             assert results[2] is not None
             assert results[2].status_code == 429
             assert results[2].body == b"Too many requests"
-            assert after == before
+            assert evalsha_calls == []
         finally:
+            redis.delete_pattern("rate_limit:rate:*")
+            redis.close()
+
+    def test_fallback_to_pipeline_ignores_other_clients_on_the_same_redis(
+        self,
+    ) -> None:
+        config = SecurityConfig[SyncGuardRequest](
+            enable_redis=True,
+            enable_agent=False,
+            redis_url=REDIS_URL,
+            redis_prefix="test:djangoapi_guard:fallback_other:",
+            rate_limit=2,
+            rate_limit_window=60,
+            enable_rate_limiting=True,
+        )
+        handler, redis = self._real_redis_rate_limiter(config)
+        other_client = SyncRedis.from_url(REDIS_URL)
+        try:
+            handler.rate_limit_script_sha = None
+            with self._own_evalsha_calls() as evalsha_calls:
+                sha = other_client.script_load("return 1")
+                other_client.execute_command("EVALSHA", sha, 0)
+                results = self._three_checks(handler)
+
+            assert results[2] is not None
+            assert evalsha_calls == []
+        finally:
+            other_client.close()
             redis.delete_pattern("rate_limit:rate:*")
             redis.close()
 

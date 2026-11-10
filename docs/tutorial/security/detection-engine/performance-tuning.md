@@ -9,10 +9,13 @@ from guard_core.sync.handlers.suspatterns_handler import sus_patterns_manager_fo
 # you act on with the config that app was built with.
 patterns = sus_patterns_manager_for(config)
 
+# None until the app has handled its first request,
+# which is when the detection engine is configured
 stats = patterns.get_performance_stats()
-print(f"Average execution time: {stats['summary']['avg_execution_time']}s")
-print(f"Timeout rate: {stats['summary']['timeout_rate'] * 100}%")
-print(f"Slow patterns: {len(stats['slow_patterns'])}")
+if stats is not None:
+    print(f"Average execution time: {stats['summary']['avg_execution_time']}s")
+    print(f"Timeout rate: {stats['summary']['timeout_rate'] * 100}%")
+    print(f"Slow patterns: {len(stats['slow_patterns'])}")
 ```
 
 ## Performance Benchmarks

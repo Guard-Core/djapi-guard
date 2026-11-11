@@ -682,6 +682,12 @@ class TestDjangoAPIGuard:
             response = middleware(request)
             assert response.status_code == 200
 
+        # The request scheduled a background refresh; it must end before the
+        # fixture that refuses the download is undone.
+        refresh = cloud_handler_for(config)._refresh_task
+        if refresh is not None:
+            refresh.join()
+
     def test_cloud_ip_refresh_no_providers(self) -> None:
         config = SecurityConfig[SyncGuardRequest](
             enable_redis=False,

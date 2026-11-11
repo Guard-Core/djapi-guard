@@ -124,6 +124,22 @@ Your API is now protected by DjangoAPI Guard!
 
 ___
 
+Releasing an app
+----------------
+
+Django has no app-shutdown event (`request_finished` fires after every request), so `DjangoAPIGuard` never releases its app on its own: serving requests leaves the module-level default managers bound to the first app that took them. When a host stops a worker, or a test suite builds several middleware instances in one process, release the config explicitly:
+
+```python
+from django.conf import settings
+from djangoapi_guard import release_app
+
+release_app(settings.GUARD_SECURITY_CONFIG)
+```
+
+The default managers then go to the next app at that moment. An app that is never released keeps the garbage-collector-timed handoff of guard-core 5.0.0: the next app gets the defaults only once the collector has freed the earlier one, so which managers a later app gets can differ between runs. In a test suite, call `release_app(config)` in a fixture after each test.
+
+___
+
 What's Next
 -----------
 

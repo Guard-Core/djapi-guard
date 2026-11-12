@@ -4,12 +4,14 @@ from django.conf import settings
 from django.core.checks import CheckMessage, Error, Warning
 from django.core.exceptions import ImproperlyConfigured
 from django.urls import URLPattern, URLResolver, get_resolver
-from guard_core._misconfiguration import config_logger
+from guard_core._misconfiguration import config_logger, report_misconfiguration
+from guard_core.models import SecurityConfig
 from guard_core.sync._utils.route_gate import (
     path_params_missing_from_template,
     path_params_without_a_literal_segment_before,
 )
 from guard_core.sync.decorators.base import BaseSecurityDecorator
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard._decorator_adoption import resolve_decorator
 
@@ -67,6 +69,14 @@ def declared_path_param_problems(
                     f"{template!r}, so it exempts nothing."
                 )
     return problems
+
+
+def report_at_boot(
+    config: SecurityConfig[SyncGuardRequest],
+    guard_decorator: BaseSecurityDecorator | None,
+) -> None:
+    for problem in declared_path_param_problems(guard_decorator):
+        report_misconfiguration(config, problem, logger=config_logger, stacklevel=2)
 
 
 def warn_at_first_request(guard_decorator: BaseSecurityDecorator | None) -> None:

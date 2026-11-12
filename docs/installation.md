@@ -87,7 +87,7 @@ MIDDLEWARE = [
 ]
 ```
 
-**Note**: Add `"djangoapi_guard"` to `INSTALLED_APPS` so `manage.py check` and `runserver` report a `detection_exclusion(path_params=...)` name its route does not have (an Error, or a Warning with `fail_on_misconfiguration=False`). Without it the first request logs the same problem once as a WARNING.
+**Note**: Adding `"djangoapi_guard"` to `INSTALLED_APPS` is optional. It adds a system check, so `manage.py check` and `runserver` report a `detection_exclusion(path_params=...)` name its route does not have as an Error (a Warning with `fail_on_misconfiguration=False`). Without it, the same problem is still reported when `DjangoAPIGuard` is built at boot (a `ValueError` that stops the boot with `fail_on_misconfiguration=True`, one WARNING with it `False`), and, for a decorator registered after the boot, once at the first request as a WARNING.
 
 **Note**: When Redis is disabled:
 

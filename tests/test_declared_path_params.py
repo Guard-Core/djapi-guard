@@ -13,8 +13,9 @@ import pytest
 from django.conf import settings
 from django.core.management import call_command
 from django.core.management.base import SystemCheckError
-from django.http import HttpRequest, JsonResponse
-from django.test import Client, override_settings
+from django.core.wsgi import get_wsgi_application
+from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.test import RequestFactory, override_settings
 from django.urls import clear_url_caches, include, path, re_path
 from django.urls.resolvers import URLPattern, URLResolver
 from django.utils.decorators import method_decorator
@@ -24,6 +25,7 @@ from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard import SecurityDecorator
 from djangoapi_guard._declared_path_params import check_declared_path_params
+from djangoapi_guard.middleware import DjangoAPIGuard
 
 LOGGER = "guard_core.models"
 URLCONF = "wp718_urls"
@@ -124,7 +126,7 @@ def _config(flag: bool) -> SecurityConfig[SyncGuardRequest]:
 
 
 @contextmanager
-def serving(build: Build, flag: bool = True) -> Iterator[None]:
+def serving(build: Build, flag: bool = True) -> Iterator[SecurityDecorator]:
     config = _config(flag)
     decorator = SecurityDecorator(config)
     module = types.ModuleType(URLCONF)
@@ -138,7 +140,7 @@ def serving(build: Build, flag: bool = True) -> Iterator[None]:
             GUARD_DECORATOR=decorator,
             INSTALLED_APPS=[*settings.INSTALLED_APPS, "djangoapi_guard"],
         ):
-            yield
+            yield decorator
     finally:
         del sys.modules[URLCONF]
         clear_url_caches()
@@ -192,34 +194,65 @@ def test_a_sound_declaration_passes_the_check(build: Build) -> None:
         call_command("check", stdout=StringIO(), stderr=StringIO())
 
 
-@pytest.mark.parametrize("flag", [True, False])
 @pytest.mark.parametrize(("build", "path_", "tail"), CASES)
-def test_the_first_request_warns_once_and_never_raises(
-    flag: bool,
+def test_the_boot_fails_with_the_flag_on(build: Build, path_: str, tail: str) -> None:
+    with serving(build, True):
+        with pytest.raises(ValueError) as failure:
+            get_wsgi_application()
+
+    assert tail in str(failure.value)
+    assert "Set fail_on_misconfiguration=False to start with it anyway." in str(
+        failure.value
+    )
+
+
+@pytest.mark.parametrize("with_the_app", [True, False])
+@pytest.mark.parametrize(("build", "path_", "tail"), CASES)
+def test_the_boot_warns_once_with_the_flag_off_and_requests_do_not_repeat_it(
+    with_the_app: bool,
     build: Build,
     path_: str,
     tail: str,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     caplog.set_level(logging.WARNING, logger=LOGGER)
-    with serving(build, flag):
-        client = Client()
-        assert client.get(path_).status_code == 200
-        assert client.get(path_).status_code == 200
+    with serving(build, False):
+        apps = [app for app in settings.INSTALLED_APPS if app != "djangoapi_guard"]
+        with override_settings(
+            INSTALLED_APPS=[*apps, *(["djangoapi_guard"] if with_the_app else [])]
+        ):
+            application = get_wsgi_application()
+            for _ in range(2):
+                response = application.get_response(RequestFactory().get(path_))
+                assert response.status_code == 200
 
     (problem,) = _problems(caplog)
     assert tail in problem
+    assert "fail_on_misconfiguration=False keeps starting with it." in problem
 
 
-def test_without_the_app_the_first_request_still_warns(
+@pytest.mark.parametrize("flag", [True, False])
+@pytest.mark.parametrize(("build", "path_", "tail"), CASES)
+def test_a_decorator_set_after_the_boot_warns_once_at_the_first_request(
+    flag: bool,
+    build: Build,
+    path_: str,
+    tail: str,
+    monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     caplog.set_level(logging.WARNING, logger=LOGGER)
-    with serving(build_missing):
-        with override_settings(INSTALLED_APPS=settings.INSTALLED_APPS):
-            assert Client().get("/items/7/").status_code == 200
+    with serving(build, flag) as decorator:
+        monkeypatch.setattr(
+            "djangoapi_guard.middleware.resolve_decorator", lambda: None
+        )
+        middleware = DjangoAPIGuard(lambda request: HttpResponse("OK"))
+        middleware.set_decorator_handler(decorator)
+        for _ in range(2):
+            assert middleware(RequestFactory().get(path_)).status_code == 200
 
-    assert len(_problems(caplog)) == 1
+    (problem,) = _problems(caplog)
+    assert tail in problem
 
 
 def test_an_ambiguous_decorator_is_left_to_the_middleware_to_refuse() -> None:

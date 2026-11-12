@@ -124,6 +124,38 @@ Your API is now protected by DjangoAPI Guard!
 
 ___
 
+Releasing an app
+----------------
+
+Django has no app-shutdown event (`request_finished` fires after every request), so `DjangoAPIGuard` never releases its app on its own: serving requests leaves the module-level default managers bound to the first app that took them. When a host stops a worker, or a test suite builds several middleware instances in one process, release the config explicitly:
+
+```python
+from django.conf import settings
+from djangoapi_guard import release_app
+
+release_app(settings.GUARD_SECURITY_CONFIG)
+```
+
+The host calls it once, at process shutdown, for example in gunicorn's `worker_exit` hook or an `atexit` handler. The default managers then go to the next app at that moment. An app that is never released keeps the garbage-collector-timed handoff of guard-core 5.0.0: the next app gets the defaults only once the collector has freed the earlier one, so which managers a later app gets can differ between runs. Calling it twice is harmless.
+
+In a test suite, release the config in a fixture after each test:
+
+```python
+import pytest
+from django.conf import settings
+from djangoapi_guard import release_app
+
+
+@pytest.fixture(autouse=True)
+def release_guard_app():
+    yield
+    release_app(settings.GUARD_SECURITY_CONFIG)
+```
+
+Never call `release_app` from a per-request signal such as `request_finished`, or from any other per-request hook. Those run after every request, so each request would release the live app: its handlers are forgotten and the default managers go to the next app while this one is still serving. Release only at process shutdown, or at the end of a test.
+
+___
+
 What's Next
 -----------
 

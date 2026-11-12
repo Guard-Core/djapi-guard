@@ -75,3 +75,42 @@ def test_clear_cache_route_stays_behind_the_localhost_gate(
     ):
         response = Client(REMOTE_ADDR="203.0.113.5").post("/admin/clear-cache")
     assert response.status_code == 403
+
+
+@pytest.mark.parametrize("name", EXAMPLE_PROJECTS)
+def test_unban_route_lifts_the_ban_it_names(
+    name: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config, urlconf = _load_example(name, monkeypatch)
+    assert config.redis_prefix != "djangoapi_guard:"
+    with override_settings(
+        ROOT_URLCONF=urlconf, GUARD_SECURITY_CONFIG=config, MIDDLEWARE=GUARD_MIDDLEWARE
+    ):
+        client = Client(REMOTE_ADDR="127.0.0.1")
+        client.get("/")
+        bans = ip_ban_manager_for(config)
+        bans.ban_ip(BANNED_IP, 300, "test")
+        assert bans.is_ip_banned(BANNED_IP)
+
+        response = client.post(
+            "/admin/unban-ip", {"ip": BANNED_IP}, content_type="application/json"
+        )
+
+        assert response.status_code == 200
+        assert not bans.is_ip_banned(BANNED_IP)
+        assert response.json()["details"]["ip"] == BANNED_IP
+
+
+@pytest.mark.parametrize("garbage", ["not-an-ip", "203.0.113.0/24", "", "1.2.3.999"])
+@pytest.mark.parametrize("name", EXAMPLE_PROJECTS)
+def test_unban_route_refuses_input_that_is_not_an_ip(
+    name: str, garbage: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config, urlconf = _load_example(name, monkeypatch)
+    with override_settings(
+        ROOT_URLCONF=urlconf, GUARD_SECURITY_CONFIG=config, MIDDLEWARE=GUARD_MIDDLEWARE
+    ):
+        response = Client(REMOTE_ADDR="127.0.0.1").post(
+            "/admin/unban-ip", {"ip": garbage}, content_type="application/json"
+        )
+    assert response.status_code == 400

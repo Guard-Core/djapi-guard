@@ -704,15 +704,16 @@ def admin_unban_ip(request: HttpRequest) -> JsonResponse:
         data = json.loads(request.body) if request.body else {}
     except (json.JSONDecodeError, ValueError):
         data = {}
-    ip_to_unban = data.get("ip")
-    if not ip_to_unban:
-        return JsonResponse({"detail": "IP address required"}, status=400)
+    try:
+        ip_to_unban = str(ip_address(str(data.get("ip", "")).strip()))
+    except (ValueError, AttributeError):
+        return JsonResponse({"detail": "Not an IP address"}, status=400)
     # `ip_ban_manager` is the default app's; this app's own manager:
     ip_ban_manager_for(config).unban_ip(ip_to_unban)
     return JsonResponse(
         {
             "message": f"IP {ip_to_unban} has been unbanned",
-            "details": {"unbanned_ip": ip_to_unban},
+            "details": {"action": "unban", "ip": ip_to_unban},
         }
     )
 

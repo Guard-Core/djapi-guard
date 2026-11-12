@@ -1,6 +1,7 @@
 import json
 import logging
 from datetime import datetime, timezone
+from ipaddress import ip_address
 
 from django.http import HttpRequest, JsonResponse
 from django.urls import path
@@ -26,7 +27,13 @@ def unban_ip_address(request: HttpRequest) -> JsonResponse:
             data = json.loads(request.body)
         except (json.JSONDecodeError, ValueError):
             data = {}
-    ip = data.get("ip", "")
+    try:
+        ip = str(ip_address(str(data.get("ip", "")).strip()))
+    except (ValueError, AttributeError):
+        return JsonResponse({"detail": "Not an IP address"}, status=400)
+    from advanced_app.security import security_config
+
+    ip_ban_manager_for(security_config).unban_ip(ip)
     logger.info("Unbanning IP: %s", ip)
     return JsonResponse(
         message_response(

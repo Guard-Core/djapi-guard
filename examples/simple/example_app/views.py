@@ -10,6 +10,7 @@ from example_project.settings import GUARD_SECURITY_CONFIG
 from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync.handlers.cloud_handler import cloud_handler_for
 from guard_core.sync.handlers.ipban_handler import ip_ban_manager_for
+from guard_core.sync.handlers.ratelimit_handler import RateLimitManager
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard import (
@@ -738,10 +739,16 @@ def admin_stats(request: HttpRequest) -> JsonResponse:
 @require_POST
 @guard.require_ip(whitelist=["127.0.0.1"])
 def admin_clear_cache(request: HttpRequest) -> JsonResponse:
+    """Clears all bans and rate limit windows for this app's Redis prefix."""
+    ip_ban_manager_for(config).reset()
+    RateLimitManager(config).reset()
     return JsonResponse(
         {
-            "message": "Cache cleared successfully",
-            "details": {"cleared_at": datetime.now(timezone.utc).isoformat()},
+            "message": "Security caches cleared",
+            "details": {
+                "cleared": ["ip_bans", "rate_limit_windows"],
+                "cleared_at": datetime.now(timezone.utc).isoformat(),
+            },
         }
     )
 

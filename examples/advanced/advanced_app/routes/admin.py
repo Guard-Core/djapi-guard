@@ -7,6 +7,8 @@ from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 from guard_core.sync.handlers.cloud_handler import cloud_handler_for
+from guard_core.sync.handlers.ipban_handler import ip_ban_manager_for
+from guard_core.sync.handlers.ratelimit_handler import RateLimitManager
 
 from advanced_app.models import message_response, stats_response
 from advanced_app.security import guard
@@ -73,16 +75,15 @@ def get_security_stats(request: HttpRequest) -> JsonResponse:
 @require_POST
 @guard.require_ip(whitelist=["127.0.0.1"])
 def clear_security_cache(request: HttpRequest) -> JsonResponse:
+    """Clears all bans and rate limit windows for this app's Redis prefix."""
+    from advanced_app.security import security_config
+
+    ip_ban_manager_for(security_config).reset()
+    RateLimitManager(security_config).reset()
     return JsonResponse(
         message_response(
             "Security caches cleared",
-            details={
-                "cleared": [
-                    "rate_limit_cache",
-                    "ip_ban_cache",
-                    "geo_cache",
-                ],
-            },
+            details={"cleared": ["ip_bans", "rate_limit_windows"]},
         )
     )
 

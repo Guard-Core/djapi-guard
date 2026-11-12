@@ -98,7 +98,7 @@ ___
 
 - `POST /admin/unban-ip` - Unban an IP address
 - `GET /admin/stats` - Security statistics
-- `POST /admin/clear-cache` - Clear security cache
+- `POST /admin/clear-cache` - Clear all IP bans and rate limit windows
 - `PUT /admin/emergency-mode` - Toggle emergency mode
 - `GET /admin/cloud-status` - Cloud provider IP range status
 

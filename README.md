@@ -280,7 +280,7 @@ GUARD_SECURITY_CONFIG = SecurityConfig(
     rate_limit=100,
     enforce_https=True,
     enable_cors=True,
-    cors_allow_origins=["*"],
+    cors_allow_origins=["https://example.com"],
     cors_allow_methods=["GET", "POST"],
     cors_allow_headers=["*"],
     cors_allow_credentials=True,
@@ -449,7 +449,7 @@ Configure CORS settings for your Django application using the `enable_cors` and 
 ```python
 GUARD_SECURITY_CONFIG = SecurityConfig(
     enable_cors=True,
-    cors_allow_origins=["*"],
+    cors_allow_origins=["https://example.com"],
     cors_allow_methods=["GET", "POST"],
     cors_allow_headers=["*"],
     cors_allow_credentials=True,

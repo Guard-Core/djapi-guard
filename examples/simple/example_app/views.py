@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from datetime import datetime, timezone
 from ipaddress import ip_address
 
@@ -27,6 +28,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 config: SecurityConfig[SyncGuardRequest] = GUARD_SECURITY_CONFIG
+DYNAMIC_RULES_OWN_EMERGENCY_MODE = (
+    "this app takes emergency mode from the dashboard's dynamic rules; a local "
+    "switch would be reverted at the next rule update"
+)
 guard = SecurityDecorator(config)
 
 
@@ -721,16 +726,31 @@ def admin_unban_ip(request: HttpRequest) -> JsonResponse:
 @require_GET
 @guard.require_ip(whitelist=["127.0.0.1"])
 def admin_stats(request: HttpRequest) -> JsonResponse:
+    """Reads this process's ban table (IPBanManager.banned_ips), its rate limit
+    windows (RateLimitManager.request_timestamps) and the SecurityConfig rules.
+    The engine keeps no request counters, so none are reported."""
+    now = time.time()
+    windows = RateLimitManager(config).request_timestamps
+    banned_ips = sorted(
+        ip
+        for ip, expiry in ip_ban_manager_for(config).banned_ips.items()
+        if expiry > now
+    )
+    rate_limit_windows = {key: len(window) for key, window in windows.items() if window}
+    active_rules = {
+        "rate_limit": config.rate_limit,
+        "rate_limit_window": config.rate_limit_window,
+        "auto_ban_threshold": config.auto_ban_threshold,
+        "blocked_countries": list(config.blocked_countries),
+        "block_cloud_providers": sorted(config.block_cloud_providers or ()),
+    }
     return JsonResponse(
         {
             "message": "Security statistics",
             "details": {
-                "total_requests": 0,
-                "blocked_requests": 0,
-                "rate_limited": 0,
-                "banned_ips": 0,
-                "active_rules": 0,
-                "uptime": "unknown",
+                "banned_ips": banned_ips,
+                "rate_limit_windows": rate_limit_windows,
+                "active_rules": active_rules,
             },
         }
     )
@@ -758,17 +778,36 @@ def admin_clear_cache(request: HttpRequest) -> JsonResponse:
 @require_http_methods(["PUT"])
 @guard.require_ip(whitelist=["127.0.0.1"])
 def admin_emergency_mode(request: HttpRequest) -> JsonResponse:
+    """Switches emergency mode on this process through SecurityConfig.
+
+    Emergency mode has two sources: SecurityConfig.emergency_mode set at startup,
+    or a dynamic rule from the dashboard at runtime. This is the local switch: it
+    changes this process only, so a multi-worker deployment uses the dashboard's
+    dynamic rule. While emergency mode is on only emergency_whitelist is admitted,
+    so enabling adds 127.0.0.1 to keep this admin route reachable.
+    """
     try:
         data = json.loads(request.body) if request.body else {}
     except (json.JSONDecodeError, ValueError):
         data = {}
-    enable = data.get("enable", False)
+    enable = data.get("enable") if isinstance(data, dict) else None
+    if not isinstance(enable, bool):
+        return JsonResponse(
+            {"detail": 'The body must be {"enable": true|false}'}, status=400
+        )
+    if config.enable_dynamic_rules:
+        return JsonResponse({"detail": DYNAMIC_RULES_OWN_EMERGENCY_MODE}, status=409)
+    if enable and "127.0.0.1" not in config.emergency_whitelist:
+        config.emergency_whitelist = [*config.emergency_whitelist, "127.0.0.1"]
+    config.emergency_mode = enable
+    state = "enabled" if config.emergency_mode else "disabled"
     return JsonResponse(
         {
-            "message": (
-                "Emergency mode enabled" if enable else "Emergency mode disabled"
-            ),
-            "details": {"emergency_mode": enable},
+            "message": f"Emergency mode {state}",
+            "details": {
+                "emergency_mode": config.emergency_mode,
+                "emergency_whitelist": list(config.emergency_whitelist),
+            },
         }
     )
 

@@ -730,17 +730,27 @@ def admin_unban_ip(request: HttpRequest) -> JsonResponse:
 @require_GET
 @guard.require_ip(whitelist=["127.0.0.1"])
 def admin_stats(request: HttpRequest) -> JsonResponse:
-    """Reads this process's ban table (IPBanManager.banned_ips), its rate limit
-    windows (RateLimitManager.request_timestamps) and the SecurityConfig rules.
-    The engine keeps no request counters, so none are reported."""
+    """Reads this process's ban table (IPBanManager.banned_ips), its in-memory rate
+    limit windows (RateLimitManager.request_timestamps) and the SecurityConfig
+    rules. With Redis on, the windows live in Redis under redis_prefix and
+    rate_limit_windows is null; bans other workers wrote also live in Redis. The
+    engine keeps no request counters, so none are reported."""
+    redis_in_use = bool(config.enable_redis and config.redis_url)
     now = time.time()
-    windows = RateLimitManager(config).request_timestamps
     banned_ips = sorted(
         ip
         for ip, expiry in ip_ban_manager_for(config).banned_ips.items()
         if expiry > now
     )
-    rate_limit_windows = {key: len(window) for key, window in windows.items() if window}
+    rate_limit_windows = (
+        None
+        if redis_in_use
+        else {
+            key: len(window)
+            for key, window in RateLimitManager(config).request_timestamps.items()
+            if window
+        }
+    )
     active_rules = {
         "rate_limit": config.rate_limit,
         "rate_limit_window": config.rate_limit_window,
@@ -754,6 +764,8 @@ def admin_stats(request: HttpRequest) -> JsonResponse:
             "details": {
                 "banned_ips": banned_ips,
                 "rate_limit_windows": rate_limit_windows,
+                "rate_limit_store": "redis" if redis_in_use else "memory",
+                "redis_prefix": config.redis_prefix if redis_in_use else None,
                 "active_rules": active_rules,
             },
         }

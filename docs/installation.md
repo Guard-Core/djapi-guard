@@ -87,6 +87,8 @@ MIDDLEWARE = [
 ]
 ```
 
+**Note**: Add `"djangoapi_guard"` to `INSTALLED_APPS` so `manage.py check` and `runserver` report a `detection_exclusion(path_params=...)` name its route does not have (an Error, or a Warning with `fail_on_misconfiguration=False`). Without it the first request logs the same problem once as a WARNING.
+
 **Note**: When Redis is disabled:
 
 - Rate limiting and IP bans become instance-local

@@ -48,6 +48,7 @@ from guard_core.sync.protocols.redis_protocol import SyncRedisHandlerProtocol
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 from guard_core.sync.utils import extract_client_ip, setup_custom_logging
 
+from djangoapi_guard._declared_path_params import warn_at_first_request
 from djangoapi_guard._decorator_adoption import resolve_decorator
 from djangoapi_guard.adapters import (
     DjangoGuardRequest,
@@ -245,6 +246,7 @@ class DjangoAPIGuard:
             CorsHandler(self.config) if self.config.enable_cors else None
         )
         self._handlers_initialized = False
+        self._path_params_checked = False
         self._init_lock = threading.Lock()
 
         self._configure_security_headers(self.config)
@@ -521,6 +523,9 @@ class DjangoAPIGuard:
             if self._handlers_initialized:
                 return None
             self._adopt_decorator()
+            if not self._path_params_checked:
+                self._path_params_checked = True
+                warn_at_first_request(self.guard_decorator)
             try:
                 self._initialize_handlers()
             except GuardRedisError as e:

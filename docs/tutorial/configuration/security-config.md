@@ -70,6 +70,39 @@ Redis Settings
 | `redis_url` | str \| None | "redis://localhost:6379" | Redis server URL |
 | `redis_prefix` | str | "guard_core:" | Prefix for Redis keys |
 
+Endpoint Rate Limits
+--------------------
+
+A limit follows the handler, not the path. The middleware resolves every `endpoint_rate_limits` key through its own router, and a request matches a key when it reaches the same view with the same path parameters, so a concrete-id key stays per resource. Two paths on one view share one budget: `login/` and `signin/` below point at one view function, so a limit set under either key counts both, and a stacked path cannot get a fresh budget. `signup/` has its own view, so its limit is its own. A generic view stacked on many paths shares one budget across all of them, so give each limited path its own view. A key that resolves to no route falls back to the normalized path. See the 5.0.0 release note "An endpoint limit follows the handler, not the path".
+
+```python
+from django.http import JsonResponse
+from django.urls import path
+from djangoapi_guard import SecurityConfig
+
+
+def sign_in(request):
+    return JsonResponse({"page": "sign in"})
+
+
+def sign_up(request):
+    return JsonResponse({"page": "sign up"})
+
+
+urlpatterns = [
+    path("login/", sign_in),
+    path("signin/", sign_in),
+    path("signup/", sign_up),
+]
+
+GUARD_SECURITY_CONFIG = SecurityConfig(
+    endpoint_rate_limits={
+        "/login/": (5, 60),
+        "/signup/": (3, 60),
+    },
+)
+```
+
 Agent Settings
 --------------
 

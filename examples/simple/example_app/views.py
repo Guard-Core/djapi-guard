@@ -28,6 +28,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 config: SecurityConfig[SyncGuardRequest] = GUARD_SECURITY_CONFIG
+# 127.0.0.1 is added to emergency_whitelist only when absent, and removed on disable
+# only when this route added it, so a startup or dashboard whitelist is never edited.
+_ADMIN_ADDED_LOOPBACK = {"added": False}
+
 DYNAMIC_RULES_OWN_EMERGENCY_MODE = (
     "this app takes emergency mode from the dashboard's dynamic rules; a local "
     "switch would be reverted at the next rule update"
@@ -797,9 +801,19 @@ def admin_emergency_mode(request: HttpRequest) -> JsonResponse:
         )
     if config.enable_dynamic_rules:
         return JsonResponse({"detail": DYNAMIC_RULES_OWN_EMERGENCY_MODE}, status=409)
+    added: list[str] = []
+    removed: list[str] = []
     if enable and "127.0.0.1" not in config.emergency_whitelist:
         config.emergency_whitelist = [*config.emergency_whitelist, "127.0.0.1"]
+        _ADMIN_ADDED_LOOPBACK["added"] = True
+        added = ["127.0.0.1"]
     config.emergency_mode = enable
+    if not enable and _ADMIN_ADDED_LOOPBACK["added"]:
+        config.emergency_whitelist = [
+            entry for entry in config.emergency_whitelist if entry != "127.0.0.1"
+        ]
+        _ADMIN_ADDED_LOOPBACK["added"] = False
+        removed = ["127.0.0.1"]
     state = "enabled" if config.emergency_mode else "disabled"
     return JsonResponse(
         {
@@ -807,6 +821,8 @@ def admin_emergency_mode(request: HttpRequest) -> JsonResponse:
             "details": {
                 "emergency_mode": config.emergency_mode,
                 "emergency_whitelist": list(config.emergency_whitelist),
+                "added_to_emergency_whitelist": added,
+                "removed_from_emergency_whitelist": removed,
             },
         }
     )

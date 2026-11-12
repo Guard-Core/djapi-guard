@@ -4,6 +4,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 from django.test import Client, override_settings
@@ -139,12 +140,18 @@ def test_emergency_switch_refuses_outsiders_and_keeps_the_admin(
         on = _put(admin, {"enable": True})
         assert on.status_code == 200
         assert on.json()["details"]["emergency_mode"] is True
+        assert on.json()["details"]["added_to_emergency_whitelist"] == ["127.0.0.1"]
+        assert on.json()["details"]["emergency_whitelist"] == ["127.0.0.1"]
         assert config.emergency_mode is True
         assert outsider.get("/").status_code == 503
         assert admin.get("/").status_code == 200
 
         off = _put(admin, {"enable": False})
         assert off.json()["details"]["emergency_mode"] is False
+        assert off.json()["details"]["removed_from_emergency_whitelist"] == [
+            "127.0.0.1"
+        ]
+        assert config.emergency_whitelist == []
         assert outsider.get("/").status_code == 200
         assert admin.get("/").status_code == 200
 
@@ -168,9 +175,10 @@ def test_emergency_switch_defers_to_the_dashboard_when_dynamic_rules_are_on(
     name: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     config, urlconf = _load_example(name, monkeypatch)
-    config.agent_api_key = "test-key-0123456789"
-    config.enable_agent = True
-    config.enable_dynamic_rules = True
+    monkeypatch.setattr("guard_agent.SyncGuardAgentHandler", lambda config: MagicMock())
+    monkeypatch.setattr(config, "agent_api_key", "test-key-0123456789")
+    monkeypatch.setattr(config, "enable_agent", True)
+    monkeypatch.setattr(config, "enable_dynamic_rules", True)
     with override_settings(
         ROOT_URLCONF=urlconf, GUARD_SECURITY_CONFIG=config, MIDDLEWARE=GUARD_MIDDLEWARE
     ):
@@ -210,3 +218,21 @@ def test_stats_come_from_the_engine_and_carry_no_invented_numbers(
         after
     )
     assert after["active_rules"]["rate_limit"] == config.rate_limit
+
+
+@pytest.mark.parametrize("name", EXAMPLE_PROJECTS)
+def test_emergency_switch_leaves_a_whitelist_it_did_not_extend_alone(
+    name: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config, urlconf = _load_example(name, monkeypatch)
+    monkeypatch.setattr(config, "emergency_whitelist", ["127.0.0.1"])
+    with override_settings(
+        ROOT_URLCONF=urlconf, GUARD_SECURITY_CONFIG=config, MIDDLEWARE=GUARD_MIDDLEWARE
+    ):
+        admin = Client(REMOTE_ADDR="127.0.0.1")
+        on = _put(admin, {"enable": True}).json()["details"]
+        off = _put(admin, {"enable": False}).json()["details"]
+
+    assert on["added_to_emergency_whitelist"] == []
+    assert off["removed_from_emergency_whitelist"] == []
+    assert config.emergency_whitelist == ["127.0.0.1"]

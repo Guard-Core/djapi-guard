@@ -18,6 +18,7 @@ from django.urls import clear_url_caches
 from guard_core._security_config_fields import DEFAULT_EXCLUDE_PATHS
 from guard_core.exceptions import MisconfigurationError
 from guard_core.models import SecurityConfig
+from guard_core.sync._utils.route_gate import route_unknown_to_decorator_problem
 from guard_core.sync.handlers.ratelimit_handler import rate_limit_handler
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
@@ -27,6 +28,7 @@ from djangoapi_guard._declared_path_params import check_declared_path_params
 from djangoapi_guard.middleware import DjangoAPIGuard
 from tests.redis_isolation import REDIS_PREFIX, REDIS_URL
 
+FOREIGN_KIND = route_unknown_to_decorator_problem("x").kind
 ROOT = "wp_inproc_root"
 HOST = "wp_inproc_host"
 OTHER = "wp_inproc_other"
@@ -139,6 +141,14 @@ def _geo_of(guard: DjangoAPIGuard) -> object:
     return guard.geo_ip_handler
 
 
+def _foreign(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
+    return [
+        r
+        for r in caplog.records
+        if any(kind == FOREIGN_KIND for kind, _ in r.__dict__.get("problems", ()))
+    ]
+
+
 def _hints(caplog: pytest.LogCaptureFixture) -> list[str]:
     return [
         m for m in (r.getMessage() for r in caplog.records) if "GUARD_URLCONFS" in m
@@ -206,7 +216,7 @@ def test_two_decorators_in_one_late_urlconf_refuse_with_none_adopted(
         _call(guard, "/hello/", config=config)
 
 
-def test_a_decorator_set_by_the_call_is_not_refused_for_a_second_one(
+def test_a_decorator_set_by_the_call_refuses_a_foreign_route_not_as_ambiguous(
     write: Callable[[str, str], None],
 ) -> None:
     config = _config(fail_on_misconfiguration=True)
@@ -216,11 +226,14 @@ def test_a_decorator_set_by_the_call_is_not_refused_for_a_second_one(
     chosen = sys.modules[ROOT].guard_deco
     guard.set_decorator_handler(chosen)
 
-    assert _call(guard, "/admin/", HOST, config=config) == 200
+    with pytest.raises(MisconfigurationError) as refused:
+        _call(guard, "/admin/", HOST, config=config)
+    assert [p.kind for p in refused.value.problems] == [FOREIGN_KIND]
+    assert _call(guard, "/hello/", config=config) == 400
     assert guard.guard_decorator is chosen
 
 
-def test_a_decorator_named_by_the_setting_is_not_refused_for_a_second_one(
+def test_a_decorator_named_by_the_setting_refuses_a_foreign_route_not_as_ambiguous(
     write: Callable[[str, str], None],
 ) -> None:
     config = _config(fail_on_misconfiguration=True)
@@ -229,8 +242,109 @@ def test_a_decorator_named_by_the_setting_is_not_refused_for_a_second_one(
     setting = {"GUARD_DECORATOR": f"{ROOT}.guard_deco"}
     guard = _guard(config, **setting)
 
-    assert _call(guard, "/admin/", HOST, config=config, extra=setting) == 200
+    with pytest.raises(MisconfigurationError) as refused:
+        _call(guard, "/admin/", HOST, config=config, extra=setting)
+    assert [p.kind for p in refused.value.problems] == [FOREIGN_KIND]
     assert guard.guard_decorator is sys.modules[ROOT].guard_deco
+
+
+def test_a_decorator_named_by_the_setting_serves_a_foreign_route_with_one_report(
+    write: Callable[[str, str], None], caplog: pytest.LogCaptureFixture
+) -> None:
+    config = _config(fail_on_misconfiguration=False)
+    write(ROOT, ROOT_GUARDED)
+    write(HOST, HOST_GUARDED)
+    setting = {"GUARD_DECORATOR": f"{ROOT}.guard_deco"}
+    guard = _guard(config, **setting)
+
+    with caplog.at_level(logging.WARNING):
+        for _ in range(3):
+            assert _call(guard, "/admin/", HOST, config=config, extra=setting) == 200
+    assert len(_foreign(caplog)) == 1
+
+
+def test_a_second_decorator_is_the_ambiguity_and_never_also_a_foreign_report(
+    write: Callable[[str, str], None], caplog: pytest.LogCaptureFixture
+) -> None:
+    config = _config(fail_on_misconfiguration=True)
+    write(ROOT, ROOT_GUARDED)
+    write(HOST, HOST_GUARDED)
+    guard = _guard(config)
+
+    with caplog.at_level(logging.WARNING):
+        for _ in range(2):
+            with pytest.raises(ImproperlyConfigured, match="share one decorator"):
+                _call(guard, "/admin/", HOST, config=config)
+    assert _foreign(caplog) == []
+
+
+def test_a_foreign_route_of_the_root_urlconf_is_reported_at_startup(
+    write: Callable[[str, str], None], caplog: pytest.LogCaptureFixture
+) -> None:
+    config = _config(fail_on_misconfiguration=False)
+    write(ROOT, ROOT_GUARDED)
+    write(HOST, HOST_GUARDED)
+    setting = {"GUARD_DECORATOR": f"{HOST}.guard_deco"}
+
+    with caplog.at_level(logging.WARNING):
+        guard = _guard(config, **setting)
+        for _ in range(3):
+            assert _call(guard, "/hello/", config=config, extra=setting) == 200
+    assert len(_foreign(caplog)) == 1
+
+
+def test_a_foreign_route_in_a_request_urlconf_refuses_its_other_routes_too(
+    write: Callable[[str, str], None], caplog: pytest.LogCaptureFixture
+) -> None:
+    config = _config(fail_on_misconfiguration=True)
+    write(ROOT, ROOT_GUARDED)
+    write(
+        HOST,
+        HOST_GUARDED.replace(
+            "urlpatterns = [path('admin/', view)]",
+            "urlpatterns = [path('admin/', view), path('plain/', plain)]",
+        ).replace(VIEW, VIEW + "def plain(request):\n    return HttpResponse('ok')\n"),
+    )
+    setting = {"GUARD_DECORATOR": f"{ROOT}.guard_deco"}
+    guard = _guard(config, **setting)
+
+    assert _call(guard, "/hello/", config=config, extra=setting) == 400
+    with caplog.at_level(logging.WARNING):
+        with pytest.raises(MisconfigurationError) as refused:
+            _call(guard, "/plain/", HOST, config=config, extra=setting)
+    assert [p.kind for p in refused.value.problems] == [FOREIGN_KIND]
+    assert _call(guard, "/hello/", config=config, extra=setting) == 400
+
+
+def test_a_foreign_route_of_the_root_urlconf_stops_the_start_with_the_flag_on(
+    write: Callable[[str, str], None],
+) -> None:
+    config = _config(fail_on_misconfiguration=True)
+    write(ROOT, ROOT_GUARDED)
+    write(HOST, HOST_GUARDED)
+
+    with pytest.raises(MisconfigurationError) as refused:
+        _guard(config, GUARD_DECORATOR=f"{HOST}.guard_deco")
+    assert [p.kind for p in refused.value.problems] == [FOREIGN_KIND]
+
+
+def test_a_urlconf_sharing_the_decorator_or_only_creating_another_is_not_reported(
+    write: Callable[[str, str], None], caplog: pytest.LogCaptureFixture
+) -> None:
+    config = _config(fail_on_misconfiguration=True)
+    write(ROOT, ROOT_GUARDED)
+    write(HOST, ROOT_DECORATOR_ONLY.replace("hello", "admin"))
+    write(
+        OTHER,
+        HOST_DECLARING.replace("wp_inproc_root", ROOT).replace("{name}", "item_id"),
+    )
+    setting = {"GUARD_DECORATOR": f"{ROOT}.guard_deco"}
+    guard = _guard(config, **setting)
+
+    with caplog.at_level(logging.WARNING):
+        assert _call(guard, "/admin/", HOST, config=config, extra=setting) == 200
+        assert _call(guard, "/item/1/", OTHER, config=config, extra=setting) == 200
+    assert _foreign(caplog) == []
 
 
 def test_the_root_urlconf_and_a_listed_one_are_not_named_as_unlisted(

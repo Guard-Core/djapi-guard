@@ -144,9 +144,9 @@ def test_l1_alternating_host_urlconfs_keep_a_state_each_and_walk_the_host_once(
     walks: list[int] = []
     real = _declared_path_params.declared_path_param_problems
 
-    def counting(*args: Any) -> Any:
+    def counting(*args: Any, **kwargs: Any) -> Any:
         walks.append(1)
-        return real(*args)
+        return real(*args, **kwargs)
 
     with _served(False, monkeypatch) as (_, middleware):
         assert middleware(_request("root")).status_code == 200
@@ -167,9 +167,9 @@ def test_l2_the_table_is_walked_once_per_change_and_never_per_request(
     walks: list[int] = []
     real = _declared_path_params.declared_path_param_problems
 
-    def counting(*args: Any) -> Any:
+    def counting(*args: Any, **kwargs: Any) -> Any:
         walks.append(1)
-        return real(*args)
+        return real(*args, **kwargs)
 
     with _served(False, monkeypatch) as (decorator, middleware):
         assert middleware(_request(variant)).status_code == 200

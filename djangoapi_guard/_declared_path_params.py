@@ -11,8 +11,11 @@ from guard_core._misconfiguration import (
 )
 from guard_core._misconfiguration_kinds import Problem
 from guard_core.models import SecurityConfig
-from guard_core.sync._utils.route_gate import detection_exclusion_path_param_problems
-from guard_core.sync.decorators.base import BaseSecurityDecorator
+from guard_core.sync._utils.route_gate import (
+    detection_exclusion_path_param_problems,
+    route_unknown_to_decorator_problem,
+)
+from guard_core.sync.decorators.base import BaseSecurityDecorator, RouteConfig
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard._decorator_adoption import resolve_decorator, startup_resolvers
@@ -42,15 +45,21 @@ def _route_ids_of(callback: object) -> set[str]:
     }
 
 
+def _decorated_in(
+    guard_decorator: BaseSecurityDecorator, resolver: URLResolver
+) -> Iterator[tuple[str, str, RouteConfig | None]]:
+    for template, callback in _templates_and_callbacks(resolver.url_patterns):
+        for route_id in sorted(_route_ids_of(callback)):
+            yield route_id, template, guard_decorator.get_route_config(route_id)
+
+
 def _declared_in(
     guard_decorator: BaseSecurityDecorator, resolver: URLResolver
 ) -> Iterator[tuple[str, str, Collection[str]]]:
-    for template, callback in _templates_and_callbacks(resolver.url_patterns):
-        for route_id in sorted(_route_ids_of(callback)):
-            route_config = guard_decorator.get_route_config(route_id)
-            declared = getattr(route_config, "excluded_detection_path_params", None)
-            if declared:
-                yield route_id, template, declared
+    for route_id, template, route_config in _decorated_in(guard_decorator, resolver):
+        declared = getattr(route_config, "excluded_detection_path_params", None)
+        if declared:
+            yield route_id, template, declared
 
 
 def declares_path_params(
@@ -64,15 +73,27 @@ def declares_path_params(
 def declared_path_param_problems(
     guard_decorator: BaseSecurityDecorator | None,
     resolver: URLResolver | None = None,
+    *,
+    foreign: bool = True,
 ) -> list[Problem]:
+    """`foreign=False` leaves out the routes this decorator does not know, for a
+    walk whose caller already reports that the decorator is the wrong one."""
     if guard_decorator is None:
         return []
     problems: list[Problem] = []
+    unknown: set[str] = set()
     for walked in [resolver] if resolver else startup_resolvers():
-        for route_id, template, declared in _declared_in(guard_decorator, walked):
-            problems += detection_exclusion_path_param_problems(
-                route_id, template, declared
-            )
+        for route_id, template, route_config in _decorated_in(guard_decorator, walked):
+            if route_config is None:
+                if foreign and route_id not in unknown:
+                    unknown.add(route_id)
+                    problems.append(route_unknown_to_decorator_problem(route_id))
+                continue
+            declared = getattr(route_config, "excluded_detection_path_params", None)
+            if declared:
+                problems += detection_exclusion_path_param_problems(
+                    route_id, template, declared
+                )
     return problems
 
 
@@ -150,12 +171,15 @@ def route_table_holds(resolver: URLResolver, state: RouteTableState) -> bool:
 
 
 def walk_route_table(
-    resolver: URLResolver, guard_decorator: BaseSecurityDecorator | None
+    resolver: URLResolver,
+    guard_decorator: BaseSecurityDecorator | None,
+    *,
+    foreign: bool = True,
 ) -> RouteTableState:
     root = resolver.url_patterns
     return RouteTableState(
         _layout_of(root),
-        tuple(declared_path_param_problems(guard_decorator, resolver)),
+        tuple(declared_path_param_problems(guard_decorator, resolver, foreign=foreign)),
     )
 
 

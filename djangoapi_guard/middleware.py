@@ -673,7 +673,9 @@ class DjangoAPIGuard:
             if known is not None and route_table_holds(resolver, known):
                 self._refuse_while_problems_stand(known, decorator)
                 return
-            state = walk_route_table(resolver, decorator)
+            state = walk_route_table(
+                resolver, decorator, foreign=self._decorator_ambiguity is None
+            )
             self._route_table_states[resolver] = state
             report_declared_path_params(
                 self.config, decorator, problems=list(state.problems), log_refusal=True

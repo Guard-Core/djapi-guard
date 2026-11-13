@@ -4,7 +4,9 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from django.http import HttpRequest, HttpResponse
+from guard_core.exceptions import MisconfigurationError
 from guard_core.protocols.response_protocol import GuardResponse
+from guard_core.sync._utils.route_gate import route_unknown_to_decorator_problem
 from guard_core.sync.decorators.base import RouteConfig
 from guard_core.sync.handlers.behavior_handler import BehaviorRule
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
@@ -425,13 +427,17 @@ def test_get_route_decorator_config_no_guard_route_id(
     assert result is None
 
 
-def test_get_route_decorator_config_no_matching_route(
-    security_config: SecurityConfig[SyncGuardRequest],
-) -> None:
+def _request_of_an_unknown_route(
+    fail_on_misconfiguration: bool,
+) -> tuple[Any, DjangoGuardRequest]:
+    security_config = SecurityConfig[SyncGuardRequest](
+        enable_redis=False,
+        enable_agent=False,
+        enable_penetration_detection=False,
+        fail_on_misconfiguration=fail_on_misconfiguration,
+    )
     middleware = _make_middleware(security_config)
-
-    decorator = SecurityDecorator(security_config)
-    middleware.set_decorator_handler(decorator)
+    middleware.set_decorator_handler(SecurityDecorator(security_config))
 
     django_request = HttpRequest()
     django_request.path = "/nonexistent"
@@ -440,12 +446,25 @@ def test_get_route_decorator_config_no_matching_route(
     django_request.META["SERVER_NAME"] = "localhost"
     django_request.META["SERVER_PORT"] = "80"
     cast(Any, django_request).guard_route_id = "nonexistent_route_id"
-
     assert middleware.route_resolver is not None
-    result = middleware.route_resolver.get_route_config(
-        DjangoGuardRequest(django_request)
-    )
-    assert result is None
+    return middleware.route_resolver, DjangoGuardRequest(django_request)
+
+
+def test_get_route_decorator_config_no_matching_route() -> None:
+    resolver, request = _request_of_an_unknown_route(False)
+
+    assert resolver.get_route_config(request) is None
+
+
+def test_get_route_decorator_config_no_matching_route_is_refused_by_default() -> None:
+    resolver, request = _request_of_an_unknown_route(True)
+
+    with pytest.raises(MisconfigurationError) as refused:
+        resolver.get_route_config(request)
+
+    assert [p.kind for p in refused.value.problems] == [
+        route_unknown_to_decorator_problem("nonexistent_route_id").kind
+    ]
 
 
 def test_bypass_all_security_checks(

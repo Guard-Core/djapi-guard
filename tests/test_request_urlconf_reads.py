@@ -189,30 +189,56 @@ def test_the_old_knob_alone_still_answers_500_for_the_unknown_route(
     assert result["statuses"] == [500]
 
 
-def test_a_decorator_named_by_the_setting_is_never_refused(tmp_path: Path) -> None:
+def _foreign_refusals(result: dict[str, Any]) -> list[bool]:
+    return ["MisconfigurationError" in str(s) for s in result["statuses"]]
+
+
+def test_a_decorator_named_by_the_setting_is_never_called_ambiguous(
+    tmp_path: Path,
+) -> None:
     result = _run(
         tmp_path,
         root="decorated",
         host="decorated",
         fail=True,
         explicit="setting",
-        requests=[[HOST, "/admin/", {}], [ROOT, "/hello/", {}]],
+        requests=[[HOST, "/admin/", {}], [HOST, "/admin/", {}], [ROOT, "/hello/", {}]],
     )
-    assert result["statuses"] == [200, 400]
+    assert _foreign_refusals(result) == [True, True, False]
+    assert result["statuses"][2] == 400
     assert _count(result, UNKNOWN_ROUTE) == 1
     assert _count(result, AMBIGUOUS) == 0
 
 
-def test_a_decorator_set_by_the_call_is_never_refused(tmp_path: Path) -> None:
+def test_a_decorator_set_by_the_call_is_never_called_ambiguous(
+    tmp_path: Path,
+) -> None:
     result = _run(
         tmp_path,
         root="decorated",
         host="decorated",
         fail=True,
         explicit="call",
-        requests=[[HOST, "/admin/", {}], [ROOT, "/hello/", {}]],
+        requests=[[HOST, "/admin/", {}], [HOST, "/admin/", {}], [ROOT, "/hello/", {}]],
     )
-    assert result["statuses"] == [200, 400]
+    assert _foreign_refusals(result) == [True, True, False]
+    assert result["statuses"][2] == 400
+    assert _count(result, UNKNOWN_ROUTE) == 1
+    assert _count(result, AMBIGUOUS) == 0
+
+
+def test_a_decorator_named_by_the_setting_serves_the_foreign_route_once_reported(
+    tmp_path: Path,
+) -> None:
+    result = _run(
+        tmp_path,
+        root="decorated",
+        host="decorated",
+        fail=False,
+        explicit="setting",
+        requests=[[HOST, "/admin/", {}], [HOST, "/admin/", {}], [ROOT, "/hello/", {}]],
+    )
+    assert result["statuses"] == [200, 200, 400]
     assert _count(result, UNKNOWN_ROUTE) == 1
     assert _count(result, AMBIGUOUS) == 0
 

@@ -6,6 +6,7 @@ import posixpath
 import re
 import threading
 import time
+import weakref
 from collections import OrderedDict
 from collections.abc import Callable, Iterable
 from contextvars import ContextVar
@@ -17,7 +18,7 @@ from django.contrib.staticfiles.views import serve as staticfiles_serve
 from django.core.exceptions import ImproperlyConfigured, SuspiciousFileOperation
 from django.http import HttpRequest, HttpResponse
 from django.http.response import HttpResponseBase
-from django.urls import ResolverMatch, URLPattern, URLResolver
+from django.urls import ResolverMatch, URLPattern, URLResolver, get_resolver
 from django.urls.resolvers import LocalePrefixPattern, RegexPattern, RoutePattern
 from django.utils._os import safe_join
 from django.utils.cache import patch_vary_headers
@@ -48,7 +49,12 @@ from guard_core.sync.protocols.redis_protocol import SyncRedisHandlerProtocol
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 from guard_core.sync.utils import extract_client_ip, setup_custom_logging
 
-from djangoapi_guard._declared_path_params import report_declared_path_params
+from djangoapi_guard._declared_path_params import (
+    RouteTableState,
+    report_declared_path_params,
+    route_table_holds,
+    walk_route_table,
+)
 from djangoapi_guard._decorator_adoption import resolve_decorator
 from djangoapi_guard.adapters import (
     DjangoGuardRequest,
@@ -248,6 +254,10 @@ class DjangoAPIGuard:
         self._handlers_initialized = False
         self._path_params_checked = False
         self._init_lock = threading.Lock()
+        self._route_table_lock = threading.Lock()
+        self._route_table_states: weakref.WeakKeyDictionary[
+            URLResolver, RouteTableState
+        ] = weakref.WeakKeyDictionary()
 
         self._configure_security_headers(self.config)
         self._init_redis_handler()
@@ -479,8 +489,6 @@ class DjangoAPIGuard:
         return False
 
     def static_route_prefixes(self) -> tuple[str, ...]:
-        from django.urls import get_resolver
-
         return tuple(_urlconf_prefixes(get_resolver().url_patterns, ""))
 
     def _adopt_decorator(self) -> None:
@@ -552,7 +560,41 @@ class DjangoAPIGuard:
             return self._attach_cors_headers(blocking, request)
         return self._build_preflight_response(cors_handler, request_headers)
 
+    def _refuse_while_problems_stand(
+        self, state: RouteTableState, decorator: BaseSecurityDecorator
+    ) -> None:
+        if state.problems and self.config.fail_on_misconfiguration:
+            report_declared_path_params(
+                self.config, decorator, problems=list(state.problems)
+            )
+
+    def _walk_route_table_again(
+        self, resolver: URLResolver, decorator: BaseSecurityDecorator
+    ) -> None:
+        with self._route_table_lock:
+            known = self._route_table_states.get(resolver)
+            if known is not None and route_table_holds(resolver, known):
+                self._refuse_while_problems_stand(known, decorator)
+                return
+            state = walk_route_table(resolver, decorator)
+            self._route_table_states[resolver] = state
+            report_declared_path_params(
+                self.config, decorator, problems=list(state.problems), log_refusal=True
+            )
+
+    def _check_route_table(self, request: HttpRequest) -> None:
+        decorator = self.guard_decorator
+        if decorator is None:
+            return
+        resolver = get_resolver(getattr(request, "urlconf", None))
+        state = self._route_table_states.get(resolver)
+        if state is None or not route_table_holds(resolver, state):
+            self._walk_route_table_again(resolver, decorator)
+        else:
+            self._refuse_while_problems_stand(state, decorator)
+
     def __call__(self, request: HttpRequest) -> HttpResponseBase:
+        self._check_route_table(request)
         early_response = self._ensure_handlers_initialized(request)
         if early_response is not None:
             return early_response

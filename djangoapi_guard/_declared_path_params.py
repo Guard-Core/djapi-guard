@@ -1,4 +1,5 @@
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Sequence
+from dataclasses import dataclass
 
 from django.conf import settings
 from django.core.checks import CheckMessage, Error, Warning
@@ -43,11 +44,13 @@ def _route_ids_of(callback: object) -> set[str]:
 
 def declared_path_param_problems(
     guard_decorator: BaseSecurityDecorator | None,
+    resolver: URLResolver | None = None,
 ) -> list[Problem]:
     if guard_decorator is None:
         return []
     problems: list[Problem] = []
-    for template, callback in _templates_and_callbacks(get_resolver().url_patterns):
+    patterns = (resolver or get_resolver()).url_patterns
+    for template, callback in _templates_and_callbacks(patterns):
         for route_id in sorted(_route_ids_of(callback)):
             route_config = guard_decorator.get_route_config(route_id)
             declared = getattr(route_config, "excluded_detection_path_params", None)
@@ -62,14 +65,83 @@ def declared_path_param_problems(
 def report_declared_path_params(
     config: SecurityConfig[SyncGuardRequest],
     guard_decorator: BaseSecurityDecorator | None,
+    *,
+    problems: list[Problem] | None = None,
+    log_refusal: bool = False,
 ) -> None:
-    """The one report point, at the boot and at the first request:
-    fail_on_misconfiguration decides between one raise and one warning each."""
+    """The one report point, at the boot, at the first request and again whenever
+    the urlconf changes (a route can be added after startup). With
+    fail_on_misconfiguration every request raises a fresh error from the cached
+    problems and the refusal is logged once per change; without it each problem
+    is warned once."""
+    if problems is None:
+        problems = declared_path_param_problems(guard_decorator)
+    if log_refusal and problems and config.fail_on_misconfiguration:
+        config_logger.error(
+            "Every request is refused until this is fixed: %s", "; ".join(problems)
+        )
     report_declared_path_param_problems(
-        config,
-        declared_path_param_problems(guard_decorator),
-        logger=config_logger,
-        stacklevel=2,
+        config, problems, logger=config_logger, stacklevel=2
+    )
+
+
+# One entry per pattern list: (index of the parent entry, index of the resolver in
+# it, id of the list, its length). The state keeps these numbers and the problem
+# strings, never a resolver or a list, so it cannot keep the resolver alive.
+_Layout = tuple[tuple[int, int, int, int], ...]
+
+
+@dataclass(frozen=True)
+class RouteTableState:
+    layout: _Layout
+    problems: tuple[Problem, ...]
+
+
+def _patterns_of(entry: object) -> Sequence[object] | None:
+    return entry.url_patterns if isinstance(entry, URLResolver) else None
+
+
+def _layout_of(root: Sequence[object]) -> _Layout:
+    layout = [(-1, -1, id(root), len(root))]
+    pending = [(0, root)]
+    while pending:
+        parent, patterns = pending.pop()
+        for index, entry in enumerate(patterns):
+            nested = _patterns_of(entry)
+            if nested is not None:
+                layout.append((parent, index, id(nested), len(nested)))
+                pending.append((len(layout) - 1, nested))
+    return tuple(layout)
+
+
+def _layout_holds(root: Sequence[object], layout: _Layout) -> bool:
+    resolved: list[Sequence[object]] = []
+    for parent, index, identity, length in layout:
+        if parent < 0:
+            patterns: Sequence[object] | None = root
+        elif index < len(resolved[parent]):
+            patterns = _patterns_of(resolved[parent][index])
+        else:
+            return False
+        if patterns is None or len(patterns) != length or id(patterns) != identity:
+            return False
+        resolved.append(patterns)
+    return True
+
+
+def route_table_holds(resolver: URLResolver, state: RouteTableState) -> bool:
+    """True while no pattern list of this resolver changed: the check costs the
+    number of lists, not of routes."""
+    return _layout_holds(resolver.url_patterns, state.layout)
+
+
+def walk_route_table(
+    resolver: URLResolver, guard_decorator: BaseSecurityDecorator | None
+) -> RouteTableState:
+    root = resolver.url_patterns
+    return RouteTableState(
+        _layout_of(root),
+        tuple(declared_path_param_problems(guard_decorator, resolver)),
     )
 
 

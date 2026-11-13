@@ -1,10 +1,10 @@
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Collection, Iterable, Iterator, Sequence
 from dataclasses import dataclass
 
 from django.conf import settings
 from django.core.checks import CheckMessage, Error, Warning
 from django.core.exceptions import ImproperlyConfigured
-from django.urls import URLPattern, URLResolver, get_resolver
+from django.urls import URLPattern, URLResolver
 from guard_core._misconfiguration import (
     config_logger,
     report_declared_path_param_problems,
@@ -15,7 +15,7 @@ from guard_core.sync._utils.route_gate import detection_exclusion_path_param_pro
 from guard_core.sync.decorators.base import BaseSecurityDecorator
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
-from djangoapi_guard._decorator_adoption import resolve_decorator
+from djangoapi_guard._decorator_adoption import resolve_decorator, startup_resolvers
 
 _HTTP_VERBS = ("get", "post", "put", "patch", "delete", "head", "options", "trace")
 
@@ -42,6 +42,25 @@ def _route_ids_of(callback: object) -> set[str]:
     }
 
 
+def _declared_in(
+    guard_decorator: BaseSecurityDecorator, resolver: URLResolver
+) -> Iterator[tuple[str, str, Collection[str]]]:
+    for template, callback in _templates_and_callbacks(resolver.url_patterns):
+        for route_id in sorted(_route_ids_of(callback)):
+            route_config = guard_decorator.get_route_config(route_id)
+            declared = getattr(route_config, "excluded_detection_path_params", None)
+            if declared:
+                yield route_id, template, declared
+
+
+def declares_path_params(
+    guard_decorator: BaseSecurityDecorator | None, resolver: URLResolver
+) -> bool:
+    return guard_decorator is not None and any(
+        True for _ in _declared_in(guard_decorator, resolver)
+    )
+
+
 def declared_path_param_problems(
     guard_decorator: BaseSecurityDecorator | None,
     resolver: URLResolver | None = None,
@@ -49,13 +68,8 @@ def declared_path_param_problems(
     if guard_decorator is None:
         return []
     problems: list[Problem] = []
-    patterns = (resolver or get_resolver()).url_patterns
-    for template, callback in _templates_and_callbacks(patterns):
-        for route_id in sorted(_route_ids_of(callback)):
-            route_config = guard_decorator.get_route_config(route_id)
-            declared = getattr(route_config, "excluded_detection_path_params", None)
-            if not declared:
-                continue
+    for walked in [resolver] if resolver else startup_resolvers():
+        for route_id, template, declared in _declared_in(guard_decorator, walked):
             problems += detection_exclusion_path_param_problems(
                 route_id, template, declared
             )

@@ -23,6 +23,7 @@ from django.urls.resolvers import LocalePrefixPattern, RegexPattern, RoutePatter
 from django.utils._os import safe_join
 from django.utils.cache import patch_vary_headers
 from django.views.static import serve as static_serve
+from guard_core._security_config_fields import DEFAULT_EXCLUDE_PATHS
 from guard_core.exceptions import GuardRedisError
 from guard_core.models import SecurityConfig
 from guard_core.protocols.response_protocol import GuardResponse
@@ -51,11 +52,18 @@ from guard_core.sync.utils import extract_client_ip, setup_custom_logging
 
 from djangoapi_guard._declared_path_params import (
     RouteTableState,
+    declares_path_params,
     report_declared_path_params,
     route_table_holds,
     walk_route_table,
 )
-from djangoapi_guard._decorator_adoption import resolve_decorator
+from djangoapi_guard._decorator_adoption import (
+    alive_decorators,
+    ambiguity_message,
+    listed_urlconfs,
+    resolve_decorator,
+    startup_resolvers,
+)
 from djangoapi_guard.adapters import (
     DjangoGuardRequest,
     DjangoGuardResponse,
@@ -255,6 +263,9 @@ class DjangoAPIGuard:
         self._path_params_checked = False
         self._init_lock = threading.Lock()
         self._route_table_lock = threading.Lock()
+        self._decorator_adopted_automatically = False
+        self._decorator_ambiguity: str | None = None
+        self._unlisted_urlconfs_named: set[str] = set()
         self._route_table_states: weakref.WeakKeyDictionary[
             URLResolver, RouteTableState
         ] = weakref.WeakKeyDictionary()
@@ -489,12 +500,22 @@ class DjangoAPIGuard:
         return False
 
     def static_route_prefixes(self) -> tuple[str, ...]:
-        return tuple(_urlconf_prefixes(get_resolver().url_patterns, ""))
+        return tuple(
+            prefix
+            for resolver in startup_resolvers()
+            for prefix in _urlconf_prefixes(resolver.url_patterns, "")
+        )
 
     def _adopt_decorator(self) -> None:
         adopted = resolve_decorator() if self.guard_decorator is None else None
         if adopted is not None:
-            self.set_decorator_handler(adopted)
+            self._adopt(adopted)
+
+    def _adopt(self, decorator: BaseSecurityDecorator) -> None:
+        self.set_decorator_handler(decorator)
+        self._decorator_adopted_automatically = (
+            getattr(settings, "GUARD_DECORATOR", None) is None
+        )
 
     def _report_route_misconfigurations_at_startup(self) -> None:
         handler_initializer = self.handler_initializer
@@ -561,17 +582,77 @@ class DjangoAPIGuard:
         return self._build_preflight_response(cors_handler, request_headers)
 
     def _refuse_while_problems_stand(
-        self, state: RouteTableState, decorator: BaseSecurityDecorator
+        self, state: RouteTableState, decorator: BaseSecurityDecorator | None
     ) -> None:
         if state.problems and self.config.fail_on_misconfiguration:
             report_declared_path_params(
                 self.config, decorator, problems=list(state.problems)
             )
 
-    def _walk_route_table_again(
-        self, resolver: URLResolver, decorator: BaseSecurityDecorator
-    ) -> None:
+    def _refuse_while_decorator_is_ambiguous(self) -> None:
+        if self._decorator_ambiguity and self.config.fail_on_misconfiguration:
+            raise ImproperlyConfigured(self._decorator_ambiguity)
+
+    def _find_decorator_ambiguity(self) -> None:
+        """A urlconf read after startup can bring a second decorator (the first
+        one was adopted, or none was). Only a decorator this middleware chose
+        itself is refused: one named by the setting or by set_decorator_handler is
+        the app's choice, and the engine already warns about a route it does not
+        know."""
+        explicit = getattr(settings, "GUARD_DECORATOR", None) is not None or (
+            self.guard_decorator is not None
+            and not self._decorator_adopted_automatically
+        )
+        if explicit:
+            return
+        alive = alive_decorators()
+        if len(alive) > 1:
+            message = ambiguity_message(alive)
+            if message != self._decorator_ambiguity:
+                self._decorator_ambiguity = message
+                self.logger.error(
+                    "%s%s",
+                    message,
+                    " Every request is refused until this is fixed."
+                    if self.config.fail_on_misconfiguration
+                    else " fail_on_misconfiguration=False keeps serving with "
+                    "the decorator already in use.",
+                )
+        elif alive and self.guard_decorator is None:
+            self._adopt(alive[0])
+
+    def _name_unlisted_urlconf(self, name: str, resolver: URLResolver) -> None:
+        if name in self._unlisted_urlconfs_named:
+            return
+        self._unlisted_urlconfs_named.add(name)
+        unchecked = []
+        if tuple(self.config.exclude_paths) != DEFAULT_EXCLUDE_PATHS:
+            unchecked.append("the exclude_paths route check")
+        if declares_path_params(self.guard_decorator, resolver):
+            unchecked.append("the path_params report")
+        if unchecked:
+            self.logger.warning(
+                "The urlconf %r was chosen by a request and is neither "
+                "ROOT_URLCONF nor listed in settings.GUARD_URLCONFS, so the "
+                "startup checks (%s, manage.py check) did not read its routes. "
+                "List it in settings.GUARD_URLCONFS to have them read.",
+                name,
+                ", ".join(unchecked),
+            )
+
+    def _meet_request_urlconf(self, resolver: URLResolver) -> None:
+        name = getattr(resolver.urlconf_name, "__name__", resolver.urlconf_name)
+        list(resolver.url_patterns)
+        if name in {settings.ROOT_URLCONF, *listed_urlconfs()}:
+            return
+        self._find_decorator_ambiguity()
+        self._name_unlisted_urlconf(str(name), resolver)
+
+    def _walk_route_table_again(self, resolver: URLResolver, urlconf: object) -> None:
         with self._route_table_lock:
+            if urlconf is not None and resolver not in self._route_table_states:
+                self._meet_request_urlconf(resolver)
+            decorator = self.guard_decorator
             known = self._route_table_states.get(resolver)
             if known is not None and route_table_holds(resolver, known):
                 self._refuse_while_problems_stand(known, decorator)
@@ -583,15 +664,20 @@ class DjangoAPIGuard:
             )
 
     def _check_route_table(self, request: HttpRequest) -> None:
-        decorator = self.guard_decorator
-        if decorator is None:
+        urlconf = getattr(request, "urlconf", None)
+        if (
+            urlconf is None
+            and self.guard_decorator is None
+            and self._decorator_ambiguity is None
+        ):
             return
-        resolver = get_resolver(getattr(request, "urlconf", None))
+        resolver = get_resolver(urlconf)
         state = self._route_table_states.get(resolver)
         if state is None or not route_table_holds(resolver, state):
-            self._walk_route_table_again(resolver, decorator)
+            self._walk_route_table_again(resolver, urlconf)
         else:
-            self._refuse_while_problems_stand(state, decorator)
+            self._refuse_while_problems_stand(state, self.guard_decorator)
+        self._refuse_while_decorator_is_ambiguous()
 
     def __call__(self, request: HttpRequest) -> HttpResponseBase:
         self._check_route_table(request)
@@ -759,6 +845,8 @@ class DjangoAPIGuard:
         self, decorator_handler: BaseSecurityDecorator | None
     ) -> None:
         self.guard_decorator = decorator_handler
+        self._decorator_adopted_automatically = False
+        self._route_table_states.clear()
         self.route_resolver.context.guard_decorator = decorator_handler
         if self.behavioral_processor:
             self.behavioral_processor.context.guard_decorator = decorator_handler

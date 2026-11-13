@@ -39,6 +39,9 @@ from guard_core.sync.core.initialization import HandlerInitializer
 from guard_core.sync.core.responses import ErrorResponseFactory, ResponseContext
 from guard_core.sync.core.routing import RouteConfigResolver, RoutingContext
 from guard_core.sync.core.validation import RequestValidator, ValidationContext
+from guard_core.sync.core.validation.path_matching import (
+    _has_routing_anomaly_in_any_decoding,
+)
 from guard_core.sync.decorators.base import BaseSecurityDecorator, RouteConfig
 from guard_core.sync.handlers.cloud_handler import cloud_handler_for
 from guard_core.sync.handlers.cors_handler import CorsHandler, is_preflight
@@ -73,6 +76,19 @@ from djangoapi_guard.adapters import (
 )
 
 _decorator_missing_warned = False
+
+
+def _is_route_check_candidate(entry: str) -> bool:
+    """The entries the engine's exclude_paths route check examines
+    (core/checks/route_prefixes.py): not a default, not just slashes, no routing
+    anomaly."""
+    return (
+        entry not in DEFAULT_EXCLUDE_PATHS
+        and bool(entry.rstrip("/"))
+        and not _has_routing_anomaly_in_any_decoding(entry)
+    )
+
+
 # How long process exit waits for an agent to flush and stop: its own stop() retries
 # a refused endpoint for 14 s and a black-holed one for over a minute.
 _AGENT_EXIT_WAIT_SECONDS = 5.0
@@ -626,7 +642,7 @@ class DjangoAPIGuard:
             return
         self._unlisted_urlconfs_named.add(name)
         unchecked = []
-        if tuple(self.config.exclude_paths) != DEFAULT_EXCLUDE_PATHS:
+        if any(_is_route_check_candidate(entry) for entry in self.config.exclude_paths):
             unchecked.append("the exclude_paths route check")
         if declares_path_params(self.guard_decorator, resolver):
             unchecked.append("the path_params report")
@@ -844,16 +860,43 @@ class DjangoAPIGuard:
     def set_decorator_handler(
         self, decorator_handler: BaseSecurityDecorator | None
     ) -> None:
-        self.guard_decorator = decorator_handler
+        previous = self.guard_decorator
+        self._bind_decorator(decorator_handler)
+        if decorator_handler is None or not self._handlers_initialized:
+            return
+        try:
+            self._run_decorator_init_steps(decorator_handler)
+        except Exception:
+            self._bind_decorator(previous)
+            raise
+
+    def _bind_decorator(self, decorator: BaseSecurityDecorator | None) -> None:
+        self.guard_decorator = decorator
         self._decorator_adopted_automatically = False
         self._route_table_states.clear()
-        self.route_resolver.context.guard_decorator = decorator_handler
+        self.route_resolver.context.guard_decorator = decorator
         if self.behavioral_processor:
-            self.behavioral_processor.context.guard_decorator = decorator_handler
+            self.behavioral_processor.context.guard_decorator = decorator
         if self.response_factory:
-            self.response_factory.context.guard_decorator = decorator_handler
+            self.response_factory.context.guard_decorator = decorator
         if self.handler_initializer:
-            self.handler_initializer.guard_decorator = decorator_handler
+            self.handler_initializer.guard_decorator = decorator
+
+    def _run_decorator_init_steps(self, decorator: BaseSecurityDecorator) -> None:
+        """The handlers were initialized without this decorator: run the steps the
+        engine runs for the decorator it is given at init (its misconfiguration
+        report and geo handler, behavior tracking on the shared Redis handler, and
+        the telemetry handler)."""
+        from guard_core.sync.handlers.redis_handler import is_connected_redis_manager
+
+        initializer = self.handler_initializer
+        if initializer is None:
+            return
+        initializer.report_route_misconfigurations()
+        self.geo_ip_handler = initializer.geo_ip_handler
+        if is_connected_redis_manager(self.redis_handler):
+            decorator.initialize_behavior_tracking(self.redis_handler)
+        initializer._initialize_behavior_telemetry()
 
     def _check_time_window(self, time_restrictions: dict[str, str]) -> bool:
         if self.validator is None:

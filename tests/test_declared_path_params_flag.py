@@ -9,7 +9,7 @@ import pytest
 from django.http import HttpRequest, HttpResponse
 from django.test import RequestFactory
 from django.urls.resolvers import URLPattern, URLResolver
-from guard_core._misconfiguration_kinds import MisconfigurationError
+from guard_core.exceptions import MisconfigurationError
 
 import djangoapi_guard
 from djangoapi_guard import SecurityDecorator

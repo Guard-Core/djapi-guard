@@ -12,7 +12,6 @@ from django.test import RequestFactory
 from guard_core.exceptions import GuardRedisError
 from guard_core.models import SecurityConfig
 from guard_core.protocols.response_protocol import GuardResponse
-from guard_core.sync.decorators.base import BaseSecurityDecorator
 from guard_core.sync.detection_result import DetectionResult
 from guard_core.sync.handlers.cloud_handler import cloud_handler_for
 from guard_core.sync.handlers.ipban_handler import ip_ban_manager_for
@@ -931,7 +930,7 @@ class TestDjangoAPIGuard:
         )
         middleware = self._make_middleware(config)
 
-        mock_decorator = MagicMock(spec=BaseSecurityDecorator)
+        mock_decorator = SecurityDecorator(config)
         middleware.set_decorator_handler(mock_decorator)
 
         assert middleware.guard_decorator is mock_decorator

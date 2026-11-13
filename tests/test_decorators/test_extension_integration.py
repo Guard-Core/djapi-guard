@@ -301,7 +301,7 @@ def test_behavioral_usage_rules_with_decorator(
 ) -> None:
     middleware = _make_middleware(security_config)
 
-    mock_guard_decorator = Mock()
+    mock_guard_decorator = SecurityDecorator(security_config)
     mock_behavior_tracker = Mock()
     mock_guard_decorator.behavior_tracker = mock_behavior_tracker
     middleware.set_decorator_handler(mock_guard_decorator)
@@ -344,7 +344,7 @@ def test_behavioral_return_rules_with_decorator(
 ) -> None:
     middleware = _make_middleware(security_config)
 
-    mock_guard_decorator = Mock()
+    mock_guard_decorator = SecurityDecorator(security_config)
     mock_behavior_tracker = Mock()
     mock_guard_decorator.behavior_tracker = mock_behavior_tracker
     middleware.set_decorator_handler(mock_guard_decorator)

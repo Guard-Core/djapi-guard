@@ -41,5 +41,5 @@ def test_decorator_false_under_middleware_true_starts_and_answers(
                 statuses.append(guard(request).status_code)
 
     assert statuses == [200, 200]
-    assert reported_before_any_request == 0
+    assert reported_before_any_request == 1
     assert caplog.text.count("no GeoIP database") == 1

@@ -23,7 +23,6 @@ from django.urls.resolvers import LocalePrefixPattern, RegexPattern, RoutePatter
 from django.utils._os import safe_join
 from django.utils.cache import patch_vary_headers
 from django.views.static import serve as static_serve
-from guard_core._security_config_fields import DEFAULT_EXCLUDE_PATHS
 from guard_core.exceptions import GuardRedisError
 from guard_core.models import SecurityConfig
 from guard_core.protocols.response_protocol import GuardResponse
@@ -33,15 +32,15 @@ from guard_core.sync._utils.sampling import observe_sampled_key
 from guard_core.sync.core.behavioral import BehavioralContext, BehavioralProcessor
 from guard_core.sync.core.bypass import BypassContext, BypassHandler
 from guard_core.sync.core.checks.pipeline import SecurityCheckPipeline
-from guard_core.sync.core.checks.route_prefixes import regex_route_prefix
+from guard_core.sync.core.checks.route_prefixes import (
+    is_route_check_candidate,
+    regex_route_prefix,
+)
 from guard_core.sync.core.events import MetricsCollector, SecurityEventBus
 from guard_core.sync.core.initialization import HandlerInitializer
 from guard_core.sync.core.responses import ErrorResponseFactory, ResponseContext
 from guard_core.sync.core.routing import RouteConfigResolver, RoutingContext
 from guard_core.sync.core.validation import RequestValidator, ValidationContext
-from guard_core.sync.core.validation.path_matching import (
-    _has_routing_anomaly_in_any_decoding,
-)
 from guard_core.sync.decorators.base import BaseSecurityDecorator, RouteConfig
 from guard_core.sync.handlers.cloud_handler import cloud_handler_for
 from guard_core.sync.handlers.cors_handler import CorsHandler, is_preflight
@@ -76,17 +75,6 @@ from djangoapi_guard.adapters import (
 )
 
 _decorator_missing_warned = False
-
-
-def _is_route_check_candidate(entry: str) -> bool:
-    """The entries the engine's exclude_paths route check examines
-    (core/checks/route_prefixes.py): not a default, not just slashes, no routing
-    anomaly."""
-    return (
-        entry not in DEFAULT_EXCLUDE_PATHS
-        and bool(entry.rstrip("/"))
-        and not _has_routing_anomaly_in_any_decoding(entry)
-    )
 
 
 # How long process exit waits for an agent to flush and stop: its own stop() retries
@@ -538,7 +526,6 @@ class DjangoAPIGuard:
         if handler_initializer is None:
             raise RuntimeError("handler_initializer not initialized")
         self._adopt_decorator()
-        handler_initializer.guard_decorator = self.guard_decorator
         handler_initializer.report_route_misconfigurations()
         if self.guard_decorator is not None:
             report_declared_path_params(self.config, self.guard_decorator)
@@ -549,6 +536,7 @@ class DjangoAPIGuard:
         self, request: HttpRequest
     ) -> HttpResponseBase | None:
         if self._handlers_initialized:
+            self._complete_decorator_adoption()
             return None
         e = self._initialize_handlers_once()
         if e is not None:
@@ -564,7 +552,12 @@ class DjangoAPIGuard:
             return self._attach_cors_headers(
                 self._redis_unavailable_response(), request
             )
+        self._complete_decorator_adoption()
         return None
+
+    def _complete_decorator_adoption(self) -> None:
+        if self.handler_initializer is not None:
+            self.handler_initializer.complete_decorator_adoption()
 
     def _initialize_handlers_once(self) -> GuardRedisError | None:
         with self._init_lock:
@@ -642,7 +635,7 @@ class DjangoAPIGuard:
             return
         self._unlisted_urlconfs_named.add(name)
         unchecked = []
-        if any(_is_route_check_candidate(entry) for entry in self.config.exclude_paths):
+        if any(is_route_check_candidate(entry) for entry in self.config.exclude_paths):
             unchecked.append("the exclude_paths route check")
         if declares_path_params(self.guard_decorator, resolver):
             unchecked.append("the path_params report")
@@ -836,7 +829,6 @@ class DjangoAPIGuard:
     def _initialize_handlers(self) -> None:
         if self.handler_initializer is None:
             raise RuntimeError("handler_initializer not initialized")
-        self.handler_initializer.guard_decorator = self.guard_decorator
         self.handler_initializer.initialize_redis_handlers()
         self.geo_ip_handler = self.handler_initializer.geo_ip_handler
         self.handler_initializer.initialize_agent_integrations()
@@ -862,15 +854,16 @@ class DjangoAPIGuard:
     def set_decorator_handler(
         self, decorator_handler: BaseSecurityDecorator | None
     ) -> None:
-        previous = self.guard_decorator
+        # The engine goes first: it can raise, and then nothing here changes. The
+        # contexts bind after it returns, so a request on another thread never sees
+        # the decorator before its ban manager is injected.
+        initializer = self.handler_initializer
+        if initializer is not None:
+            initializer.adopt_decorator(decorator_handler)
+            self.geo_ip_handler = initializer.geo_ip_handler
         self._bind_decorator(decorator_handler)
-        if decorator_handler is None or not self._handlers_initialized:
-            return
-        try:
-            self._run_decorator_init_steps(decorator_handler)
-        except Exception:
-            self._bind_decorator(previous)
-            raise
+        if self._handlers_initialized:
+            self._complete_decorator_adoption()
 
     def _bind_decorator(self, decorator: BaseSecurityDecorator | None) -> None:
         self.guard_decorator = decorator
@@ -878,27 +871,12 @@ class DjangoAPIGuard:
         self._route_table_states.clear()
         self.route_resolver.context.guard_decorator = decorator
         if self.behavioral_processor:
-            self.behavioral_processor.context.guard_decorator = decorator
+            behavioral = self.behavioral_processor.context
+            behavioral.guard_decorator = decorator
+            if self.handler_initializer:
+                behavioral.behavior_tracker = self.handler_initializer.behavior_tracker
         if self.response_factory:
             self.response_factory.context.guard_decorator = decorator
-        if self.handler_initializer:
-            self.handler_initializer.guard_decorator = decorator
-
-    def _run_decorator_init_steps(self, decorator: BaseSecurityDecorator) -> None:
-        """The handlers were initialized without this decorator: run the steps the
-        engine runs for the decorator it is given at init (its misconfiguration
-        report and geo handler, behavior tracking on the shared Redis handler, and
-        the telemetry handler)."""
-        from guard_core.sync.handlers.redis_handler import is_connected_redis_manager
-
-        initializer = self.handler_initializer
-        if initializer is None:
-            return
-        initializer.report_route_misconfigurations()
-        self.geo_ip_handler = initializer.geo_ip_handler
-        if is_connected_redis_manager(self.redis_handler):
-            decorator.initialize_behavior_tracking(self.redis_handler)
-        initializer._initialize_behavior_telemetry()
 
     def _check_time_window(self, time_restrictions: dict[str, str]) -> bool:
         if self.validator is None:

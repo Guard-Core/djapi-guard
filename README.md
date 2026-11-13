@@ -525,7 +525,15 @@ Nothing else is needed: the middleware adopts the decorator when Django builds i
 GUARD_DECORATOR = "myapp.security.guard_deco"
 ```
 
-With several decorators and no `GUARD_DECORATOR`, the middleware raises `ImproperlyConfigured` when Django builds it (at server load, before the first request) naming the setting and the registered decorators, so an ambiguous setup never runs with its controls off. A decorated view with no registered decorator at all logs one warning per process. `middleware.set_decorator_handler(decorator)` is still available for code that holds the middleware instance.
+With several decorators and no `GUARD_DECORATOR`, the middleware raises `ImproperlyConfigured` when Django builds it (at server load, before the first request) naming the setting and the registered decorators, so an ambiguous setup never runs with its controls off. A decorator that only a per-request urlconf (`request.urlconf`, set by django-hosts or similar) loads cannot be seen at server load: the middleware adopts it, or finds the ambiguity, when the first request chooses that urlconf. While two decorators are registered and none is named, every request raises `ImproperlyConfigured` (with `fail_on_misconfiguration=False` one error is logged and the decorator in use is kept), and the message names both fixes: set `GUARD_DECORATOR`, or share one decorator instance across the urlconfs. Without `GUARD_URLCONFS`, requests served before the first request to that urlconf are not refused. A decorator named by `GUARD_DECORATOR`, or given to `set_decorator_handler`, is never refused. A decorated view with no registered decorator at all logs one warning per process. `middleware.set_decorator_handler(decorator)` is still available for code that holds the middleware instance.
+
+The server-load checks (the `exclude_paths` route check, the `detection_exclusion(path_params=...)` report and `manage.py check`) read `ROOT_URLCONF`. An app that chooses a urlconf per request lists those urlconfs so they read them too, and so a decorator defined only there is adopted at server load:
+
+```python
+GUARD_URLCONFS = ["myapp.urls_admin", "myapp.urls_api"]
+```
+
+An entry that does not import raises `ImproperlyConfigured` when Django builds the middleware. A request that chooses a urlconf that is neither `ROOT_URLCONF` nor listed logs one warning for it, only when `exclude_paths` has an entry beyond the defaults or that urlconf declares `detection_exclusion(path_params=...)`.
 
 ### Available Decorators
 

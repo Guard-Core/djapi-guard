@@ -173,6 +173,16 @@ Logging Settings
 | `log_suspicious_level` | str \| None | "WARNING" | Log level for suspicious activity |
 | `log_format` | Literal["text", "json"] | "text" | Log output format |
 
+Django Settings
+---------------
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `GUARD_DECORATOR` | SecurityDecorator \| str | not set | The decorator the middleware uses, as the instance or its dotted path. Required when the project builds more than one |
+| `GUARD_URLCONFS` | list[str] | [] | Dotted urlconf modules a middleware chooses per request through `request.urlconf`. Startup reads them like `ROOT_URLCONF`: the `exclude_paths` route check, the `detection_exclusion(path_params=...)` report, `manage.py check` and decorator adoption. An entry that does not import raises `ImproperlyConfigured` |
+
+A urlconf chosen by a request that is neither `ROOT_URLCONF` nor listed is read at its first request: its decorator is adopted then, and two decorators with no `GUARD_DECORATOR` raise `ImproperlyConfigured` on every request (one logged error and the decorator in use kept with `fail_on_misconfiguration=False`). The startup checks did not see its routes, and one warning per urlconf says so when `exclude_paths` has an entry beyond the defaults or the urlconf declares `detection_exclusion(path_params=...)`.
+
 Usage Example
 -------------
 

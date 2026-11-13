@@ -1,20 +1,24 @@
-from collections.abc import Iterable, Iterator
+from collections.abc import Collection, Iterable, Iterator, Sequence
+from dataclasses import dataclass
 
 from django.conf import settings
 from django.core.checks import CheckMessage, Error, Warning
 from django.core.exceptions import ImproperlyConfigured
-from django.urls import URLPattern, URLResolver, get_resolver
+from django.urls import URLPattern, URLResolver
 from guard_core._misconfiguration import (
     config_logger,
     report_declared_path_param_problems,
 )
 from guard_core._misconfiguration_kinds import Problem
 from guard_core.models import SecurityConfig
-from guard_core.sync._utils.route_gate import detection_exclusion_path_param_problems
-from guard_core.sync.decorators.base import BaseSecurityDecorator
+from guard_core.sync._utils.route_gate import (
+    detection_exclusion_path_param_problems,
+    route_unknown_to_decorator_problem,
+)
+from guard_core.sync.decorators.base import BaseSecurityDecorator, RouteConfig
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
-from djangoapi_guard._decorator_adoption import resolve_decorator
+from djangoapi_guard._decorator_adoption import resolve_decorator, startup_resolvers
 
 _HTTP_VERBS = ("get", "post", "put", "patch", "delete", "head", "options", "trace")
 
@@ -41,35 +45,141 @@ def _route_ids_of(callback: object) -> set[str]:
     }
 
 
+def _decorated_in(
+    guard_decorator: BaseSecurityDecorator, resolver: URLResolver
+) -> Iterator[tuple[str, str, RouteConfig | None]]:
+    for template, callback in _templates_and_callbacks(resolver.url_patterns):
+        for route_id in sorted(_route_ids_of(callback)):
+            yield route_id, template, guard_decorator.get_route_config(route_id)
+
+
+def _declared_in(
+    guard_decorator: BaseSecurityDecorator, resolver: URLResolver
+) -> Iterator[tuple[str, str, Collection[str]]]:
+    for route_id, template, route_config in _decorated_in(guard_decorator, resolver):
+        declared = getattr(route_config, "excluded_detection_path_params", None)
+        if declared:
+            yield route_id, template, declared
+
+
+def declares_path_params(
+    guard_decorator: BaseSecurityDecorator | None, resolver: URLResolver
+) -> bool:
+    return guard_decorator is not None and any(
+        True for _ in _declared_in(guard_decorator, resolver)
+    )
+
+
 def declared_path_param_problems(
     guard_decorator: BaseSecurityDecorator | None,
+    resolver: URLResolver | None = None,
+    *,
+    foreign: bool = True,
 ) -> list[Problem]:
+    """`foreign=False` leaves out the routes this decorator does not know, for a
+    walk whose caller already reports that the decorator is the wrong one."""
     if guard_decorator is None:
         return []
     problems: list[Problem] = []
-    for template, callback in _templates_and_callbacks(get_resolver().url_patterns):
-        for route_id in sorted(_route_ids_of(callback)):
-            route_config = guard_decorator.get_route_config(route_id)
-            declared = getattr(route_config, "excluded_detection_path_params", None)
-            if not declared:
+    unknown: set[str] = set()
+    for walked in [resolver] if resolver else startup_resolvers():
+        for route_id, template, route_config in _decorated_in(guard_decorator, walked):
+            if route_config is None:
+                if foreign and route_id not in unknown:
+                    unknown.add(route_id)
+                    problems.append(route_unknown_to_decorator_problem(route_id))
                 continue
-            problems += detection_exclusion_path_param_problems(
-                route_id, template, declared
-            )
+            declared = getattr(route_config, "excluded_detection_path_params", None)
+            if declared:
+                problems += detection_exclusion_path_param_problems(
+                    route_id, template, declared
+                )
     return problems
 
 
 def report_declared_path_params(
     config: SecurityConfig[SyncGuardRequest],
     guard_decorator: BaseSecurityDecorator | None,
+    *,
+    problems: list[Problem] | None = None,
+    log_refusal: bool = False,
 ) -> None:
-    """The one report point, at the boot and at the first request:
-    fail_on_misconfiguration decides between one raise and one warning each."""
+    """The one report point, at the boot, at the first request and again whenever
+    the urlconf changes (a route can be added after startup). With
+    fail_on_misconfiguration every request raises a fresh error from the cached
+    problems and the refusal is logged once per change; without it each problem
+    is warned once."""
+    if problems is None:
+        problems = declared_path_param_problems(guard_decorator)
+    if log_refusal and problems and config.fail_on_misconfiguration:
+        config_logger.error(
+            "Every request is refused until this is fixed: %s", "; ".join(problems)
+        )
     report_declared_path_param_problems(
-        config,
-        declared_path_param_problems(guard_decorator),
-        logger=config_logger,
-        stacklevel=2,
+        config, problems, logger=config_logger, stacklevel=2
+    )
+
+
+# One entry per pattern list: (index of the parent entry, index of the resolver in
+# it, id of the list, its length). The state keeps these numbers and the problem
+# strings, never a resolver or a list, so it cannot keep the resolver alive.
+_Layout = tuple[tuple[int, int, int, int], ...]
+
+
+@dataclass(frozen=True)
+class RouteTableState:
+    layout: _Layout
+    problems: tuple[Problem, ...]
+
+
+def _patterns_of(entry: object) -> Sequence[object] | None:
+    return entry.url_patterns if isinstance(entry, URLResolver) else None
+
+
+def _layout_of(root: Sequence[object]) -> _Layout:
+    layout = [(-1, -1, id(root), len(root))]
+    pending = [(0, root)]
+    while pending:
+        parent, patterns = pending.pop()
+        for index, entry in enumerate(patterns):
+            nested = _patterns_of(entry)
+            if nested is not None:
+                layout.append((parent, index, id(nested), len(nested)))
+                pending.append((len(layout) - 1, nested))
+    return tuple(layout)
+
+
+def _layout_holds(root: Sequence[object], layout: _Layout) -> bool:
+    resolved: list[Sequence[object]] = []
+    for parent, index, identity, length in layout:
+        if parent < 0:
+            patterns: Sequence[object] | None = root
+        elif index < len(resolved[parent]):
+            patterns = _patterns_of(resolved[parent][index])
+        else:
+            return False
+        if patterns is None or len(patterns) != length or id(patterns) != identity:
+            return False
+        resolved.append(patterns)
+    return True
+
+
+def route_table_holds(resolver: URLResolver, state: RouteTableState) -> bool:
+    """True while no pattern list of this resolver changed: the check costs the
+    number of lists, not of routes."""
+    return _layout_holds(resolver.url_patterns, state.layout)
+
+
+def walk_route_table(
+    resolver: URLResolver,
+    guard_decorator: BaseSecurityDecorator | None,
+    *,
+    foreign: bool = True,
+) -> RouteTableState:
+    root = resolver.url_patterns
+    return RouteTableState(
+        _layout_of(root),
+        tuple(declared_path_param_problems(guard_decorator, resolver, foreign=foreign)),
     )
 
 

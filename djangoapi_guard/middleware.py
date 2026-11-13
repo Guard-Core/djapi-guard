@@ -48,7 +48,7 @@ from guard_core.sync.protocols.redis_protocol import SyncRedisHandlerProtocol
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 from guard_core.sync.utils import extract_client_ip, setup_custom_logging
 
-from djangoapi_guard._declared_path_params import report_at_boot, warn_at_first_request
+from djangoapi_guard._declared_path_params import report_declared_path_params
 from djangoapi_guard._decorator_adoption import resolve_decorator
 from djangoapi_guard.adapters import (
     DjangoGuardRequest,
@@ -496,7 +496,7 @@ class DjangoAPIGuard:
         handler_initializer.guard_decorator = self.guard_decorator
         handler_initializer.report_route_misconfigurations()
         if self.guard_decorator is not None:
-            report_at_boot(self.config, self.guard_decorator)
+            report_declared_path_params(self.config, self.guard_decorator)
             self._path_params_checked = True
         self.geo_ip_handler = handler_initializer.geo_ip_handler
 
@@ -527,8 +527,8 @@ class DjangoAPIGuard:
                 return None
             self._adopt_decorator()
             if not self._path_params_checked:
+                report_declared_path_params(self.config, self.guard_decorator)
                 self._path_params_checked = True
-                warn_at_first_request(self.guard_decorator)
             try:
                 self._initialize_handlers()
             except GuardRedisError as e:

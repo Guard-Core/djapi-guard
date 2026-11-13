@@ -1,6 +1,6 @@
 """LEDGER 6.851: a declared detection_exclusion path param the route does not have is
 a system check Error (a Warning with fail_on_misconfiguration=False) and a WARNING
-logged once at the first request, read from the urlconf. It never raises."""
+logged once at the first request (a refusal with the flag on), read from the urlconf."""
 
 import logging
 import sys
@@ -231,10 +231,8 @@ def test_the_boot_warns_once_with_the_flag_off_and_requests_do_not_repeat_it(
     assert "fail_on_misconfiguration=False keeps starting with it." in problem
 
 
-@pytest.mark.parametrize("flag", [True, False])
 @pytest.mark.parametrize(("build", "path_", "tail"), CASES)
 def test_a_decorator_set_after_the_boot_warns_once_at_the_first_request(
-    flag: bool,
     build: Build,
     path_: str,
     tail: str,
@@ -242,7 +240,7 @@ def test_a_decorator_set_after_the_boot_warns_once_at_the_first_request(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     caplog.set_level(logging.WARNING, logger=LOGGER)
-    with serving(build, flag) as decorator:
+    with serving(build, False) as decorator:
         monkeypatch.setattr(
             "djangoapi_guard.middleware.resolve_decorator", lambda: None
         )

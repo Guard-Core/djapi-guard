@@ -4,11 +4,10 @@ from django.conf import settings
 from django.core.checks import CheckMessage, Error, Warning
 from django.core.exceptions import ImproperlyConfigured
 from django.urls import URLPattern, URLResolver, get_resolver
-from guard_core._misconfiguration import config_logger, report_misconfiguration
+from guard_core._misconfiguration import config_logger, report_misconfigurations
+from guard_core._misconfiguration_kinds import Problem
 from guard_core.models import SecurityConfig
-from guard_core.sync._utils.route_gate import (
-    declared_path_param_problems as engine_problems,
-)
+from guard_core.sync._utils.route_gate import detection_exclusion_path_param_problems
 from guard_core.sync.decorators.base import BaseSecurityDecorator
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
@@ -41,35 +40,34 @@ def _route_ids_of(callback: object) -> set[str]:
 
 def declared_path_param_problems(
     guard_decorator: BaseSecurityDecorator | None,
-) -> list[str]:
+) -> list[Problem]:
     if guard_decorator is None:
         return []
-    problems: list[str] = []
+    problems: list[Problem] = []
     for template, callback in _templates_and_callbacks(get_resolver().url_patterns):
         for route_id in sorted(_route_ids_of(callback)):
             route_config = guard_decorator.get_route_config(route_id)
             declared = getattr(route_config, "excluded_detection_path_params", None)
             if not declared:
                 continue
-            for name, problem in engine_problems(template, declared).items():
-                problems.append(
-                    f"@detection_exclusion(path_params=...) on route {route_id!r} "
-                    f"declares {name!r}, which {problem}"
-                )
+            problems += detection_exclusion_path_param_problems(
+                route_id, template, declared
+            )
     return problems
 
 
-def report_at_boot(
+def report_declared_path_params(
     config: SecurityConfig[SyncGuardRequest],
     guard_decorator: BaseSecurityDecorator | None,
 ) -> None:
-    for problem in declared_path_param_problems(guard_decorator):
-        report_misconfiguration(config, problem, logger=config_logger, stacklevel=2)
-
-
-def warn_at_first_request(guard_decorator: BaseSecurityDecorator | None) -> None:
-    for problem in declared_path_param_problems(guard_decorator):
-        config_logger.warning(problem)
+    """The one report point, at the boot and at the first request:
+    fail_on_misconfiguration decides between one raise and one warning each."""
+    report_misconfigurations(
+        config,
+        declared_path_param_problems(guard_decorator),
+        logger=config_logger,
+        stacklevel=2,
+    )
 
 
 def check_declared_path_params(

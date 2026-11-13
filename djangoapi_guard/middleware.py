@@ -78,6 +78,7 @@ from djangoapi_guard.adapters import (
 )
 
 _decorator_missing_warned = False
+_GUARD_URLCONF_ATTRIBUTE = "_guard_urlconf_seen"
 
 
 # How long process exit waits for an agent to flush and stop: its own stop() retries
@@ -177,6 +178,22 @@ def _route_ids_of_view(match: ResolverMatch, method: str) -> list[tuple[str, str
     return [(place, route_id) for place, route_id in found if route_id]
 
 
+def _endpoint_id_of_view(match: ResolverMatch) -> str:
+    """The per-endpoint rate-limit id. A function keeps `module.qualname`; a class
+    based view takes its class; a callable without a `__qualname__` (a partial, an
+    instance) takes the id the engine stamped on it, and without a stamp the type
+    Django names it by (ResolverMatch's own view path) plus its route, because two
+    such views of one type are two routes."""
+    owner = getattr(match.func, "view_class", None) or match.func
+    qualname = getattr(owner, "__qualname__", None)
+    if qualname:
+        return f"{owner.__module__}.{qualname}"
+    stamped = getattr(owner, "_guard_route_id", None)
+    if stamped:
+        return str(stamped)
+    return f"{type(owner).__module__}.{type(owner).__qualname__}@{match.route}"
+
+
 def _route_identity(
     match: ResolverMatch,
 ) -> tuple[object, tuple[tuple[str, str], ...]]:
@@ -273,6 +290,7 @@ class DjangoAPIGuard:
         self._decorator_adopted_automatically = False
         self._decorator_ambiguity: str | None = None
         self._unlisted_urlconfs_named: set[str] = set()
+        self._late_urlconfs_named: set[object] = set()
         self._route_table_states: weakref.WeakKeyDictionary[
             URLResolver, RouteTableState
         ] = weakref.WeakKeyDictionary()
@@ -422,28 +440,21 @@ class DjangoAPIGuard:
     ) -> None:
         from django.urls import Resolver404
 
+        state = guard_request.state
         try:
             match = _resolve_match(request.path_info)
-            set_request_attribute(request, "guard_route_template", match.route)
-            view_func = match.func
-            if hasattr(view_func, "view_class"):
-                view_func = view_func.view_class
-            set_request_attribute(
-                request,
-                "guard_endpoint_id",
-                (f"{view_func.__module__}.{view_func.__qualname__}"),
-            )
+            state.guard_route_template = match.route
+            state.guard_endpoint_id = _endpoint_id_of_view(match)
+            view_func = getattr(match.func, "view_class", None) or match.func
             route_ids = _route_ids_of_view(match, (request.method or "get").lower())
             if route_ids:
-                set_request_attribute(request, "guard_route_id", route_ids[0][1])
+                state.guard_route_id = route_ids[0][1]
                 self._warn_once_decorator_missing()
                 self._warn_once_decorators_in_several_places(view_func, route_ids)
             if getattr(self.security_pipeline, "needs_route_identity", False):
-                set_request_attribute(
-                    request, "guard_route_identity", _route_identity(match)
-                )
+                state.guard_route_identity = _route_identity(match)
         except Resolver404:
-            set_request_attribute(request, "guard_route_unresolved", True)
+            state.guard_route_unresolved = True
 
     def _warn_once_decorators_in_several_places(
         self, view: object, route_ids: list[tuple[str, str]]
@@ -701,12 +712,44 @@ class DjangoAPIGuard:
 
         self._assert_initialized()
         token = hold_app_scope(self.config)
-        urlconf_token = _request_urlconf.set(getattr(request, "urlconf", None))
+        urlconf = getattr(request, "urlconf", None)
+        set_request_attribute(request, _GUARD_URLCONF_ATTRIBUTE, urlconf)
+        urlconf_token = _request_urlconf.set(urlconf)
         try:
             return self._call_after_init(request)
         finally:
             _request_urlconf.reset(urlconf_token)
             release_app_scope(token)
+
+    def process_view(
+        self,
+        request: HttpRequest,
+        view_func: object,
+        view_args: tuple[object, ...],
+        view_kwargs: dict[str, object],
+    ) -> HttpResponseBase | None:
+        """Django has chosen the urlconf the view comes from. A middleware placed
+        after this one that set `request.urlconf` made the guard resolve the route
+        in another urlconf, so the view's route rules were not enforced: refuse
+        before the view runs (or log, with fail_on_misconfiguration=False)."""
+        if _GUARD_URLCONF_ATTRIBUTE not in request.__dict__:
+            return None
+        urlconf = getattr(request, "urlconf", None)
+        if urlconf == request.__dict__[_GUARD_URLCONF_ATTRIBUTE]:
+            return None
+        message = (
+            f"request.urlconf was set to {urlconf!r} by a middleware listed after "
+            "DjangoAPIGuard, so the guard resolved this request's route in another "
+            "urlconf and its route rules were not enforced. List DjangoAPIGuard "
+            "after the middleware that sets request.urlconf."
+        )
+        if urlconf not in self._late_urlconfs_named:
+            self._late_urlconfs_named.add(urlconf)
+            self.logger.error(message)
+        if not self.config.fail_on_misconfiguration:
+            return None
+        response = self.create_error_response(500, "Guard misconfiguration")
+        return self._attach_cors_headers(unwrap_response(response), request)
 
     def _call_after_init(self, request: HttpRequest) -> HttpResponseBase:
         bypass_handler = self.bypass_handler
@@ -737,9 +780,6 @@ class DjangoAPIGuard:
 
         client_ip = extract_client_ip(guard_request, self.config, self.agent_handler)
         route_config = route_resolver.get_route_config(guard_request)
-
-        set_request_attribute(request, "_guard_client_ip", client_ip)
-        set_request_attribute(request, "_guard_route_config", route_config)
 
         bypass = bypass_handler.handle_security_bypass(
             guard_request, wrapped_call_next, route_config=route_config

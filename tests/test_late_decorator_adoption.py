@@ -12,6 +12,7 @@ from guard_core.sync.handlers.ipban_handler import ip_ban_manager, ip_ban_manage
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from djangoapi_guard import SecurityDecorator
+from djangoapi_guard.adapters import DjangoGuardRequest
 from djangoapi_guard.middleware import DjangoAPIGuard
 from tests.redis_isolation import REDIS_PREFIX, REDIS_URL
 
@@ -50,7 +51,7 @@ def _view(decorator: SecurityDecorator, name: str, *wraps: Any) -> str:
 def _get(middleware: DjangoAPIGuard, route_id: str | None = None) -> int:
     request: HttpRequest = RequestFactory().get("/", REMOTE_ADDR=PEER)
     if route_id is not None:
-        cast(Any, request).guard_route_id = route_id
+        DjangoGuardRequest(request).state.guard_route_id = route_id
     return int(middleware(request).status_code)
 
 

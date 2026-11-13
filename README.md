@@ -928,14 +928,14 @@ DjangoAPI Guard is a direct port of [FlaskAPI Guard](https://github.com/Guard-Co
 | Aspect | FlaskAPI Guard | DjangoAPI Guard |
 |--------|--------------|----------------|
 | **Entry point** | `FlaskAPIGuard` (Flask extension) | `DjangoAPIGuard` (Django middleware) |
-| **Hook mechanism** | `before_request` / `after_request` | `__call__` / `process_request` / `process_response` |
+| **Hook mechanism** | `before_request` / `after_request` | `__call__` / `process_view` |
 | **Configuration** | `FlaskAPIGuard(app, config=config)` | `MIDDLEWARE` setting + `GUARD_SECURITY_CONFIG` |
 | **Server model** | WSGI (gunicorn, waitress) | WSGI (gunicorn, uwsgi, daphne) |
 | **Package name** | `flaskapi_guard` | `djangoapi_guard` |
 | **Request state** | `flask.g` | `request` attributes |
 | **Request object** | `flask.request` (Werkzeug) | `django.http.HttpRequest` |
 | **Response object** | `flask.Response` (Werkzeug) | `django.http.HttpResponse` |
-| **IP extraction** | `request.remote_addr` / `request.access_route` | `request.META["REMOTE_ADDR"]` / `X-Forwarded-For` |
+| **IP extraction** | `request.remote_addr`, resolved through `X-Forwarded-For` for trusted proxies | `request.META["REMOTE_ADDR"]` / `X-Forwarded-For` |
 | **Custom callables** | `def check(request) -> Response \| None` | `def check(request) -> HttpResponse \| None` |
 
 ___

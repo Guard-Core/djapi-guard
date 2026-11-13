@@ -1659,7 +1659,7 @@ class TestDjangoAPIGuardCoverage:
 
         factory = RequestFactory()
         request = factory.get("/")
-        cast(Any, request).guard_route_id = route_id
+        DjangoGuardRequest(request).state.guard_route_id = route_id
 
         response = middleware(request)
 

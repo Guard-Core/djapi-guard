@@ -3,12 +3,14 @@ from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from typing import Protocol, runtime_checkable
 
+from django.core.exceptions import DisallowedHost
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
 from django.http.response import HttpResponseBase
 from guard_core.exceptions import BodyReadStalledError
 from guard_core.protocols import GuardResponse, GuardResponseHeaders
 
 _READ_CHUNK_BYTES = 65536
+_STATE_ATTRIBUTE = "_djangoapi_guard_state"
 _SERVER_SOCKET_KEYS = ("gunicorn.socket", "werkzeug.socket")
 
 
@@ -77,12 +79,12 @@ class _TimeoutSocket(Protocol):
 
 @contextmanager
 def _idle_socket_timeout(
-    environ: Mapping[str, object], idle_timeout: float
+    environ: Mapping[str, object], idle_timeout: float | None
 ) -> Iterator[None]:
     server_socket = next(
         (environ[key] for key in _SERVER_SOCKET_KEYS if key in environ), None
     )
-    if not isinstance(server_socket, _TimeoutSocket):
+    if idle_timeout is None or not isinstance(server_socket, _TimeoutSocket):
         yield
         return
     previous = server_socket.gettimeout()
@@ -91,6 +93,39 @@ def _idle_socket_timeout(
         yield
     finally:
         server_socket.settimeout(previous)
+
+
+class _GuardState:
+    """The request state the engine reads and writes: it holds only what the engine
+    or this adapter set during the request. Each value is also set on the request,
+    for the code that reads it there, but an attribute another middleware set first
+    (`client_ip`, `is_whitelisted`) is never read back as the guard's own."""
+
+    def __init__(self, request: HttpRequest) -> None:
+        values = request.__dict__.get(_STATE_ATTRIBUTE)
+        if not isinstance(values, dict):
+            values = {}
+            set_request_attribute(request, _STATE_ATTRIBUTE, values)
+        object.__setattr__(self, "_request", request)
+        object.__setattr__(self, "_values", values)
+
+    def __getattr__(self, name: str) -> object:
+        try:
+            value: object = object.__getattribute__(self, "_values")[name]
+        except KeyError:
+            raise AttributeError(name) from None
+        return value
+
+    def __setattr__(self, name: str, value: object) -> None:
+        object.__getattribute__(self, "_values")[name] = value
+        set_request_attribute(object.__getattribute__(self, "_request"), name, value)
+
+    def __delattr__(self, name: str) -> None:
+        try:
+            del object.__getattribute__(self, "_values")[name]
+        except KeyError:
+            raise AttributeError(name) from None
+        delattr(object.__getattribute__(self, "_request"), name)
 
 
 class DjangoGuardRequest:
@@ -107,13 +142,23 @@ class DjangoGuardRequest:
         result: str = self._request.scheme or ""
         return result
 
-    @property
-    def url_full(self) -> str:
-        result: str = self._request.build_absolute_uri()
+    def _absolute_uri(self) -> str:
+        try:
+            result: str = self._request.build_absolute_uri()
+        except DisallowedHost:
+            # Django refuses the Host header; the scan still has to read this URL's
+            # query, so the URL carries the host as it arrived
+            meta = self._request.META
+            host = meta.get("HTTP_HOST") or meta.get("SERVER_NAME", "")
+            return f"{self._request.scheme}://{host}{self._request.get_full_path()}"
         return result
 
+    @property
+    def url_full(self) -> str:
+        return self._absolute_uri()
+
     def url_replace_scheme(self, scheme: str) -> str:
-        url: str = self._request.build_absolute_uri()
+        url = self._absolute_uri()
         if url.startswith("http://"):
             return scheme + "://" + url[7:]
         if url.startswith("https://"):
@@ -146,11 +191,14 @@ class DjangoGuardRequest:
     def read_body_prefix(self, max_bytes: int) -> bytes:
         if max_bytes <= 0:
             return b""
-        return self._request.body[:max_bytes]
+        return self._read_prefix(max_bytes, None)
 
     def read_body_prefix_until_idle(self, max_bytes: int, idle_timeout: float) -> bytes:
         if max_bytes <= 0:
             return b""
+        return self._read_prefix(max_bytes, idle_timeout)
+
+    def _read_prefix(self, max_bytes: int, idle_timeout: float | None) -> bytes:
         request = self._request
         if hasattr(request, "_body"):
             return request._body[:max_bytes]
@@ -175,8 +223,8 @@ class DjangoGuardRequest:
         return prefix
 
     @property
-    def state(self) -> HttpRequest:
-        return self._request
+    def state(self) -> _GuardState:
+        return _GuardState(self._request)
 
     @property
     def scope(self) -> dict[str, object]:

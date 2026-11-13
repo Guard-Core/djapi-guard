@@ -35,6 +35,9 @@ Issues = "https://github.com/Guard-Core/djapi-guard/issues"
 Changelog = "https://github.com/Guard-Core/djapi-guard/blob/master/CHANGELOG.md"
 
 [project.optional-dependencies]
+agent = [
+    "guard-agent>=3.2.4",
+]
 redis = [
     "guard-core[redis]",
 ]

@@ -59,8 +59,9 @@ def test_get_endpoint_id_with_route(
     mock_request.path = "/test"
     mock_request.path_info = "/test"
     mock_request.method = "GET"
-    mock_request.guard_route_id = "orders:list"
-    mock_request.guard_endpoint_id = "test_module.test_function"
+    state = DjangoGuardRequest(mock_request).state
+    state.guard_route_id = "orders:list"
+    state.guard_endpoint_id = "test_module.test_function"
 
     # The stamped route id wins over the runtime endpoint-id extra
     # (guard-core #142's get_endpoint_id resolution order).
@@ -68,12 +69,12 @@ def test_get_endpoint_id_with_route(
     assert endpoint_id == "orders:list"
 
     # No stamped route id: the runtime endpoint-id extra is honored.
-    mock_request.guard_route_id = None
+    state.guard_route_id = None
     endpoint_id = middleware._get_endpoint_id(mock_request)
     assert endpoint_id == "test_module.test_function"
 
     # Neither is present: the redacted method:path fallback.
-    mock_request.guard_endpoint_id = None
+    state.guard_endpoint_id = None
     endpoint_id = middleware._get_endpoint_id(mock_request)
     assert endpoint_id == "GET:/test"
 
@@ -445,7 +446,7 @@ def _request_of_an_unknown_route(
     django_request.method = "GET"
     django_request.META["SERVER_NAME"] = "localhost"
     django_request.META["SERVER_PORT"] = "80"
-    cast(Any, django_request).guard_route_id = "nonexistent_route_id"
+    DjangoGuardRequest(django_request).state.guard_route_id = "nonexistent_route_id"
     assert middleware.route_resolver is not None
     return middleware.route_resolver, DjangoGuardRequest(django_request)
 

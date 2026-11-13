@@ -15,7 +15,7 @@ DjAPI Guard is a thin adapter: all security logic (models, handlers, decorators,
 * Wire the middleware: add `djangoapi_guard.middleware.DjangoAPIGuard` to `MIDDLEWARE` and set `GUARD_SECURITY_CONFIG = SecurityConfig(...)` in settings; see [Setup](#setup).
 * All behavior is guard-core's `SecurityConfig`; do not mutate handlers directly.
 * Route rules: `SecurityDecorator` from the sync mirror writes per-route `RouteConfig` the middleware resolves at request time via `_guard_route_id` on view functions.
-* The middleware adopts the `djangoapi_guard.SecurityDecorator` the project built on the first request, so decorating views is enough. With more than one decorator, set `GUARD_DECORATOR` in settings (instance or dotted path); `middleware.set_decorator_handler` stays for code that holds the middleware.
+* The middleware adopts the `djangoapi_guard.SecurityDecorator` the project built when Django builds it (server load, before the first request), so decorating views is enough. With more than one decorator, set `GUARD_DECORATOR` in settings (instance or dotted path); `middleware.set_decorator_handler` stays for code that holds the middleware.
 * Sync only: custom callables must be plain functions, Redis uses `redis.Redis`, IP comes from `request.META`.
 
 ## Installation
@@ -47,27 +47,28 @@ GUARD_SECURITY_CONFIG = SecurityConfig(
 )
 ```
 
-`GUARD_SECURITY_CONFIG` must be a `SecurityConfig` instance; when the setting is absent the middleware falls back to `SecurityConfig()` defaults. `DjangoAPIGuard` follows the standard Django middleware contract (`__init__(get_response)` / `__call__(request)`); it initializes Redis, geo IP, cloud ranges, and the agent handler lazily, runs the 17-check `SecurityCheckPipeline` from `guard_core.sync` on each request (first non-`None` `HttpResponse` blocks), handles CORS preflight explicitly, and finalizes passing responses through the response factory (headers, CORS, metrics, behavioral return rules). `middleware.agent_stats` exposes the agent's live buffer drop counters and circuit-breaker state for health-check views.
+`GUARD_SECURITY_CONFIG` must be a `SecurityConfig` instance; when the setting is absent the middleware raises `ImproperlyConfigured` when Django builds it (`middleware.py`: `if config is None: raise ImproperlyConfigured(...)`), there is no default config. `DjangoAPIGuard` follows the standard Django middleware contract (`__init__(get_response)` / `__call__(request)`); when Django builds it, it builds the Redis manager and the agent handler and the security pipeline, and the first request initializes their connections, geo IP and cloud ranges. It runs a `SecurityCheckPipeline` from `guard_core.sync` on each request, built from guard-core's 18 default check classes (fewer when the config leaves a feature off; the first non-`None` `HttpResponse` blocks), handles CORS preflight explicitly, and finalizes passing responses through the response factory (headers, CORS, metrics, behavioral return rules). `middleware.agent_stats` exposes the agent's live buffer drop counters and circuit-breaker state for health-check views.
 
 ## Route-Level Security Decorators
 
-Decorators from `guard_core.sync.decorators` write per-route `RouteConfig` objects. The middleware's route resolver maps Django URL patterns to those configs via the `_guard_route_id` attribute set on view functions, for both function-based and class-based views. The middleware adopts the single `djangoapi_guard.SecurityDecorator` the project built (or the one named by `settings.GUARD_DECORATOR`) on its first request, so the pipeline is derived from the registered routes without any call into the middleware; checks that only decorators can trigger (auth, referrer, required headers, custom validators, time window, request size/content) are built only when the middleware can see the route config.
+Decorators from `guard_core.sync.decorators` write per-route `RouteConfig` objects. The middleware's route resolver maps Django URL patterns to those configs via the `_guard_route_id` attribute set on view functions, for both function-based and class-based views. The middleware adopts the single `djangoapi_guard.SecurityDecorator` the project built (or the one named by `settings.GUARD_DECORATOR`) when Django builds it, and again at the first request for a decorator that only a per-request urlconf loads, so the pipeline is derived from the registered routes without any call into the middleware; checks that only decorators can trigger (auth, referrer, required headers, custom validators, time window, request size/content) are built only when the middleware can see the route config.
 
 `RouteConfig.bypassed_checks` accepts only recognized tokens (`all`, `ip_ban`, `ip`, `clouds`, `rate_limit`, `penetration`); an unknown token is dropped with a warning, so a typo cannot make a check look disabled while it stays enforced.
 
 ## Sync-Only Surface
 
-* Custom callables (custom checks, validators, response modifiers, `auth_verifier`) must be plain sync functions; async callables raise `TypeError` under Django's WSGI model.
-* Per-request state lives on attributes attached to the Django request object; route identity is carried by `_guard_route_id` on view functions.
+* Custom callables (custom checks, validators, response modifiers, `auth_verifier`) must be plain sync functions: the `guard_core.sync` mirror calls them without awaiting.
+* The guard keeps its per-request state in an object of its own and also sets each value as an attribute on the Django request (`request.guard_route_id`, `request.guard_endpoint_id`, ...); an attribute another middleware sets on the request, such as `request.client_ip`, is never read as the guard's own. Route identity is carried by `_guard_route_id` on view functions.
 * IP extraction is proxy-aware from `request.META` (`REMOTE_ADDR` / `X-Forwarded-For`).
 * Redis (`redis.Redis`) and outbound HTTP (`httpx.Client`) are synchronous, mirroring guard-core's sync handlers.
 
 ## Footguns
 
+* **A middleware that sets `request.urlconf` goes before `DjangoAPIGuard`.** One listed after it makes the guard resolve the route in the wrong urlconf; the guard then refuses the request before the view runs (logs one error with `fail_on_misconfiguration=False`).
 * **`GUARD_SECURITY_CONFIG` must be a `SecurityConfig` instance.** A plain dict from older docs is not converted by the middleware; construct `SecurityConfig(**settings_dict)` in settings if you keep a dict around.
 * **`enable_redis` is off unless a Redis connection field is set.** Since guard-core 5.0.0 Redis turns on exactly when `redis_url`, `redis_prefix` or another `redis_*` connection field is set explicitly (an explicit `enable_redis` always wins), and `enable_redis=True` alone uses `redis_url="redis://localhost:6379"`. With Redis on and no reachable server, stateful checks fail; point `redis_url` at a real instance or leave the Redis fields unset.
-* **Async callables are rejected.** Any `async def` custom check, validator, or modifier raises `TypeError`; convert to a sync function.
-* **Decorator-only checks need exactly one adoptable decorator.** With several `SecurityDecorator` instances and no `settings.GUARD_DECORATOR`, the first request raises `ImproperlyConfigured` naming the setting. A decorator built from `guard_core.sync.decorators` directly is not registered either; import `SecurityDecorator` from `djangoapi_guard` or set `GUARD_DECORATOR`.
+* **Custom callables must be sync.** An `async def` custom check, validator, or modifier is not awaited by the sync mirror; write a plain function.
+* **Decorator-only checks need exactly one adoptable decorator.** With several `SecurityDecorator` instances and no `settings.GUARD_DECORATOR`, the middleware raises `ImproperlyConfigured` naming the setting when Django builds it (a decorator only a per-request urlconf loads is found at that urlconf's first request, and every request raises until the setting names one). A decorator built from `guard_core.sync.decorators` directly is not registered either; import `SecurityDecorator` from `djangoapi_guard` or set `GUARD_DECORATOR`.
 * **`passive_mode=True` logs but never blocks.** Use it to trial rules; switch to `False` once logs confirm the traffic you expect.
 * **Tests need Django settings.** The suite uses pytest-django with `DJANGO_SETTINGS_MODULE = "tests.settings"` from pyproject; new test modules should not call `django.setup()` themselves.
 

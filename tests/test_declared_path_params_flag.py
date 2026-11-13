@@ -3,10 +3,12 @@ detection_exclusion path param, and the kind travels with every report."""
 
 import logging
 import pathlib
+from typing import cast
 
 import pytest
-from django.http import HttpResponse
+from django.http import HttpRequest, HttpResponse
 from django.test import RequestFactory
+from django.urls.resolvers import URLPattern, URLResolver
 from guard_core._misconfiguration_kinds import MisconfigurationError
 
 import djangoapi_guard
@@ -109,3 +111,43 @@ def test_the_adapter_holds_no_copy_of_the_engine_text() -> None:
         for p in root.rglob("*.py")
         if "@detection_exclusion(path_params=...) on route" in p.read_text()
     ]
+
+
+@pytest.mark.parametrize(
+    ("fail_secure", "passive_mode"),
+    [(True, False), (False, False), (True, True)],
+    ids=["fail_secure", "fail_open", "passive"],
+)
+def test_the_refusal_is_a_500_and_the_endpoint_never_runs(
+    fail_secure: bool, passive_mode: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from django.core.handlers.exception import convert_exception_to_response
+    from django.http import JsonResponse
+    from django.urls import path
+
+    ran: list[int] = []
+
+    def build(decorator: SecurityDecorator) -> list[URLPattern | URLResolver]:
+        def view(request: HttpRequest, pk: int) -> JsonResponse:
+            ran.append(pk)
+            return JsonResponse({})
+
+        guarded = decorator.detection_exclusion(path_params={"ghost"})(view)
+        return [path("items/<int:pk>/", guarded)]
+
+    with serving(
+        build, True, fail_secure=fail_secure, passive_mode=passive_mode
+    ) as decorator:
+        monkeypatch.setattr(
+            "djangoapi_guard.middleware.resolve_decorator", lambda: None
+        )
+        middleware = DjangoAPIGuard(lambda request: HttpResponse("OK"))
+        middleware.set_decorator_handler(decorator)
+        refusing = convert_exception_to_response(middleware)
+        codes = [
+            cast(HttpResponse, refusing(RequestFactory().get("/items/7/"))).status_code
+            for _ in range(3)
+        ]
+
+    assert codes == [500, 500, 500]
+    assert ran == []

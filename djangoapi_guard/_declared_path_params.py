@@ -4,7 +4,10 @@ from django.conf import settings
 from django.core.checks import CheckMessage, Error, Warning
 from django.core.exceptions import ImproperlyConfigured
 from django.urls import URLPattern, URLResolver, get_resolver
-from guard_core._misconfiguration import config_logger, report_misconfigurations
+from guard_core._misconfiguration import (
+    config_logger,
+    report_declared_path_param_problems,
+)
 from guard_core._misconfiguration_kinds import Problem
 from guard_core.models import SecurityConfig
 from guard_core.sync._utils.route_gate import detection_exclusion_path_param_problems
@@ -62,7 +65,7 @@ def report_declared_path_params(
 ) -> None:
     """The one report point, at the boot and at the first request:
     fail_on_misconfiguration decides between one raise and one warning each."""
-    report_misconfigurations(
+    report_declared_path_param_problems(
         config,
         declared_path_param_problems(guard_decorator),
         logger=config_logger,

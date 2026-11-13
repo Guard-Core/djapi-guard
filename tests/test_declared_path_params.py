@@ -119,15 +119,27 @@ CASES = [
 ]
 
 
-def _config(flag: bool) -> SecurityConfig[SyncGuardRequest]:
+def _config(
+    flag: bool, *, fail_secure: bool = True, passive_mode: bool = False
+) -> SecurityConfig[SyncGuardRequest]:
     return SecurityConfig[SyncGuardRequest](
-        enable_redis=False, rate_limit=100000, fail_on_misconfiguration=flag
+        enable_redis=False,
+        rate_limit=100000,
+        fail_on_misconfiguration=flag,
+        fail_secure=fail_secure,
+        passive_mode=passive_mode,
     )
 
 
 @contextmanager
-def serving(build: Build, flag: bool = True) -> Iterator[SecurityDecorator]:
-    config = _config(flag)
+def serving(
+    build: Build,
+    flag: bool = True,
+    *,
+    fail_secure: bool = True,
+    passive_mode: bool = False,
+) -> Iterator[SecurityDecorator]:
+    config = _config(flag, fail_secure=fail_secure, passive_mode=passive_mode)
     decorator = SecurityDecorator(config)
     module = types.ModuleType(URLCONF)
     module.__dict__["urlpatterns"] = build(decorator)
